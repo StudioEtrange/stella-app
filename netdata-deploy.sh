@@ -7,11 +7,12 @@ STELLA_APP_PROPERTIES_FILENAME="netdata-deploy.properties"
 
 DEFAULT_PORT=19999
 DEFAULT_DOCKER_IMAGE="titpetric/netdata"
-DEFAULT_DOCKER_IMAGE_VERSION="1.5"
+DEFAULT_DOCKER_IMAGE_VERSION="latest"
 
 function usage() {
 	echo "USAGE :"
   echo "deploy netdata in a docker instance for monitoring current host"
+	echo "NOTE : require docker on your system"
 	echo "----------------"
 	echo "o-- parametres :"
 	echo "L     install : deploy netdata"
@@ -20,7 +21,7 @@ function usage() {
   echo "L     status : give status info"
 	echo "o-- options :"
 	echo "L			--port : netdata listening port"
-	echo "L     --version : sortie elasticsearch host"
+	echo "L     --version : netdata version"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------

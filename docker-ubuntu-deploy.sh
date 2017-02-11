@@ -9,9 +9,10 @@ _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
 function usage() {
 	echo "USAGE :"
   echo "deploy docker on ubuntu system"
+	echo "NOTE : require to be run as root/sudo"
 	echo "----------------"
 	echo "o-- parametres :"
-	echo "L     prepare : prepare system"
+	echo "L     prepare : prepare system (use it once)"
 	echo "L     install : deploy docker (must have run prepare command at least once)"
 	echo "L     list : list available version (must have run prepare command at least once)"
 	echo "L     purge : remove docker from system and remove all images, containers and volume"
@@ -29,7 +30,7 @@ $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "docker-ubuntu-deploy" "$(usa
 
 
 _check_root() {
-	if [[ $(id -u) -ne 0 ]]; then
+	if [ "$(id -u)" -ne 0 ]; then
 		echo "** ERROR : please run with root/sudo."
 		exit 1
 	fi
