@@ -79,6 +79,7 @@ if [ "$ACTION" = "install" ]; then
 
 	echo "*** NOTE : to run docker client without root/sudo, please add user to group docker"
 	echo " sudo usermod -aG docker <user>"
+	echo " do not forget to logout/login after a user is affected to docker group"
 
 	echo "*** NOTE : docker service is managed with systemctl"
 	echo "systemctl start|stop docker"
