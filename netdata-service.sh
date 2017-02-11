@@ -23,8 +23,8 @@ function usage() {
   echo "L     stop [--version=<version>] : stop netdata service"
   echo "L     status : give service status info"
 	echo "o-- options :"
-	echo "L			--port : netdata listening port"
-	echo "L			--ip : netdata listening ip"
+	echo "L     --port : netdata listening port"
+	echo "L     --ip : netdata listening ip"
 	echo "L     --version : netdata version"
 }
 

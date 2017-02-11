@@ -21,7 +21,7 @@ function usage() {
 }
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'init install list'
+ACTION=											'' 			a				'init install list purge'
 "
 OPTIONS="
 VERSION='' 			'v' 			'string'				s 			0			''		  Docker Engine ubuntu version (use list command to see available version).
