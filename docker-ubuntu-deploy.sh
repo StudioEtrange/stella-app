@@ -11,11 +11,11 @@ function usage() {
 	echo "----------------"
 	echo "o-- parametres :"
 	echo "L     prepare : prepare system"
-	echo "L     install : deploy docker"
-	echo "L			list : list available version (must have run prepare command at least once)"
-	echo "L			purge : remove docker from system and remove all images, containers and volume"
+	echo "L     install : deploy docker (must have run prepare command at least once)"
+	echo "L     list : list available version (must have run prepare command at least once)"
+	echo "L     purge : remove docker from system and remove all images, containers and volume"
 	echo "o-- options :"
-	echo "L     --version : sortie elasticsearch host"
+	echo "L     --version : docker-engine ubuntu version"
 }
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
@@ -27,7 +27,7 @@ VERSION='' 			'v' 			'string'				s 			0			''		  Docker Engine ubuntu version (us
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "docker-ubuntu-deploy" "$(usage)" "APPARG" "$@"
 
 
-_check_root()
+_check_root() {
 	if [[ $(id -u) -ne 0 ]]; then
 		echo "** ERROR : please run with root/sudo."
 		exit 1
