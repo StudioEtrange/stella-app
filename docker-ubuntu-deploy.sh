@@ -32,7 +32,7 @@ _check_root() {
 		echo "** ERROR : please run with root/sudo."
 		exit 1
 	fi
-)
+}
 
 # NOTE : run with sudo
 if [ "$ACTION" = "prepare" ]; then
