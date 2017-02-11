@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
 . $_CURRENT_FILE_DIR/stella-link.sh include
