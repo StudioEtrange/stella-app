@@ -14,7 +14,10 @@ function usage() {
   echo "deploy netdata in a docker instance for monitoring current host"
 	echo "----------------"
 	echo "o-- parametres :"
-	echo "L     YYYY-MM-DD YYYY-MM-DD : date debut et date fin (incluses)"
+	echo "L     install : deploy netdata"
+  echo "L     run : run netdata"
+  echo "L     stop : stop netdata"
+  echo "L     status : give status info"
 	echo "o-- options :"
 	echo "L			--port : netdata listening port"
 	echo "L     --version : sortie elasticsearch host"
@@ -34,9 +37,10 @@ $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)"
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE:$VERSION
 DOCKER_NAME="netdata-deploy"
 
+# test docker engine is installed in this system
+$STELLA_API require "dockerd" "SYSTEM"
 
 if [ "$ACTION" = "install" ]; then
-  $STELLA_API feature_install docker#1_12_6
   docker pull $DOCKER_URI
 fi
 
