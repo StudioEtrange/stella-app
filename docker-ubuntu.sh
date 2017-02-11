@@ -26,7 +26,7 @@ ACTION=											'' 			a				'prepare install list'
 OPTIONS="
 VERSION='' 			'v' 			'string'				s 			0			''		  Docker Engine ubuntu version (use list command to see available version).
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "docker-ubuntu-deploy" "$(usage)" "APPARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "docker-ubuntu" "$(usage)" "APPARG" "$@"
 
 
 _check_root() {
@@ -36,9 +36,16 @@ _check_root() {
 	fi
 }
 
-# NOTE : run with sudo
 if [ "$ACTION" = "prepare" ]; then
 	_check_root
+
+	# for ubuntu 14.04
+	if [ "$(lsb_release -r -s)" = "14.04" ]; then
+		apt-get install -y --no-install-recommends \
+	    linux-image-extra-$(uname -r) \
+	    linux-image-extra-virtual
+	fi
+
 
 	apt-get -y --no-install-recommends install curl apt-transport-https ca-certificates curl  software-properties-common
 	curl -fsSL https://apt.dockerproject.org/gpg | sudo apt-key add -
@@ -48,7 +55,6 @@ if [ "$ACTION" = "prepare" ]; then
        main"
 
 	apt-get update
-
 
 	groupadd docker
 fi
@@ -67,6 +73,9 @@ if [ "$ACTION" = "install" ]; then
 	else
 		apt-get -y install docker-engine=$VERSION
 	fi
+
+	echo "*** NOTE : to run docker client without root/sudo, please add user to group docker"
+	echo " sudo usermod -aG docker <user>"
 fi
 
 if [ "$ACTION" = "purge" ]; then
