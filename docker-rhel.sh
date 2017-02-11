@@ -12,7 +12,7 @@ function usage() {
 	echo "NOTE : require to be run as root/sudo"
 	echo "----------------"
 	echo "o-- parametres :"
-	echo "L     prepare : prepare system (use it once)"
+	echo "L     init : prepare system for install (use it once)"
 	echo "L     install : deploy docker (must have run prepare command at least once)"
 	echo "L     list : list available version (must have run prepare command at least once)"
 	echo "L     purge : remove docker from system and remove all images, containers and volume"
@@ -21,7 +21,7 @@ function usage() {
 }
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'prepare install list'
+ACTION=											'' 			a				'init install list'
 "
 OPTIONS="
 VERSION='' 			'v' 			'string'				s 			0			''		  Docker Engine ubuntu version (use list command to see available version).
@@ -40,7 +40,7 @@ _check_root() {
 # to remove old version
 # sudo yum -y remove docker docker-common container-selinux
 # sudo yum -y remove docker-selinux
-if [ "$ACTION" = "prepare" ]; then
+if [ "$ACTION" = "init" ]; then
 	_check_root
 
 

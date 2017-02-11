@@ -18,7 +18,6 @@ function usage() {
 	echo "NOTE : require docker on your system"
 	echo "----------------"
 	echo "o-- parametres :"
-	echo "L     install : deploy netdata"
   echo "L     create [--version=<version>] [--ip=<ip>] [--port=<port>]: create & launch netdata service (must be use once before starting/stopping service)"
 	echo "L     start [--version=<version>] : start netdata service"
   echo "L     stop [--version=<version>] : stop netdata service"
@@ -31,7 +30,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'install create start stop status'
+ACTION=											'' 			a				'create start stop status'
 "
 OPTIONS="
 IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  Listening ip.
@@ -43,14 +42,10 @@ $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)"
 
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE:$VERSION
 DEFAULT_SERVICE_NAME="netdata-service"
-SERVICE_NAME=$DOCKER_DEFAULT_SERVICE_NAME-$VERSION
+SERVICE_NAME=$DEFAULT_SERVICE_NAME-$VERSION
 
 # test docker engine is installed in this system
 $STELLA_API require "dockerd" "SYSTEM"
-
-if [ "$ACTION" = "install" ]; then
-  docker pull $DOCKER_URI
-fi
 
 
 # https://github.com/titpetric/netdata
