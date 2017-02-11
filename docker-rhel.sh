@@ -17,14 +17,14 @@ function usage() {
 	echo "L     list : list available version (must have run prepare command at least once)"
 	echo "L     purge : remove docker from system and remove all images, containers and volume"
 	echo "o-- options :"
-	echo "L     --version : docker-engine ubuntu version"
+	echo "L     --version : docker-engine rhel version"
 }
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
 ACTION=											'' 			a				'init install list purge'
 "
 OPTIONS="
-VERSION='' 			'v' 			'string'				s 			0			''		  Docker Engine ubuntu version (use list command to see available version).
+VERSION='' 			'v' 			'string'				s 			0			''		  Docker Engine rhel version (use list command to see available version).
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "docker-rhel" "$(usage)" "APPARG" "$@"
 
