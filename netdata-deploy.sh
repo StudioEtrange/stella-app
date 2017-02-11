@@ -27,7 +27,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'install run start stop status'
+ACTION=											'' 			a				'install launch start stop status'
 "
 OPTIONS="
 PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening port.
@@ -48,7 +48,7 @@ fi
 
 
 # https://github.com/titpetric/netdata
-if [ "$ACTION" = "run" ]; then
+if [ "$ACTION" = "launch" ]; then
 	docker rm $DOCKER_NAME 2>/dev/null
   docker run -d --cap-add SYS_PTRACE \
               -v /proc:/host/proc:ro \
