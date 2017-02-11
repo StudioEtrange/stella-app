@@ -16,8 +16,9 @@ function usage() {
 	echo "----------------"
 	echo "o-- parametres :"
 	echo "L     install : deploy netdata"
-  echo "L     run : run netdata"
-  echo "L     stop : stop netdata"
+  echo "L     launch : launch netdata service (must be use once before starting/stopping service)"
+	echo "L     start : start netdata service"
+  echo "L     stop : stop netdata service"
   echo "L     status : give status info"
 	echo "o-- options :"
 	echo "L			--port : netdata listening port"
@@ -26,7 +27,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'install run stop status'
+ACTION=											'' 			a				'install run start stop status'
 "
 OPTIONS="
 PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening port.
@@ -48,6 +49,7 @@ fi
 
 # https://github.com/titpetric/netdata
 if [ "$ACTION" = "run" ]; then
+	docker rm $DOCKER_NAME 2>/dev/null
   docker run -d --cap-add SYS_PTRACE \
               -v /proc:/host/proc:ro \
               -v /sys:/host/sys:ro \
@@ -59,6 +61,10 @@ if [ "$ACTION" = "run" ]; then
 
 fi
 
+
+if [ "$ACTION" = "start" ]; then
+  docker start $DOCKER_NAME
+fi
 
 if [ "$ACTION" = "stop" ]; then
   docker stop $DOCKER_NAME
