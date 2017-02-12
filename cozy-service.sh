@@ -67,6 +67,10 @@ if [ "$ACTION" = "create" ]; then
 
   # create a data volume container
   mkdir -p $SERVICE_DATA_ROOT
+  mkdir -p $SERVICE_DATA_ROOT/couchdb
+  mkdir -p $SERVICE_DATA_ROOT/etc/cosy
+  mkdir -p $SERVICE_DATA_ROOT/usr/local/cosy
+  mkdir -p $SERVICE_DATA_ROOT/usr/local/var/cozy
   docker create --name $SERVICE_DATA_NAME \
                 -v $SERVICE_DATA_ROOT/couchdb:/var/lib/couchdb \
                 -v $SERVICE_DATA_ROOT/etc/cosy:/etc/cozy \
@@ -80,7 +84,7 @@ if [ "$ACTION" = "create" ]; then
               -p $DEFAULT_HTTP_PORT:80 \
               -p $DEFAULT_HTTPS_PORT:443 \
               --name "$SERVICE_NAME" \
-              --volumes-from dbstore $SERVICE_DATA_NAME \
+              --volumes-from $SERVICE_DATA_NAME \
               $DOCKER_URI
 
 
