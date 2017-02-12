@@ -9,8 +9,6 @@ STELLA_APP_PROPERTIES_FILENAME="cozy-service.properties"
 # https://docs.cozy.io/en/host/install/install-step-by-step.html
 # https://github.com/cozy-labs/cozy-docker
 
-# TODO mount volume to persist data
-# VOLUME ["/var/lib/couchdb", "/etc/cozy", "/usr/local/cozy", "/usr/local/var/cozy/"]
 # TODO nginx reverse proxy ? step 9 : https://docs.cozy.io/en/host/install/install-step-by-step.html
 
 DEFAULT_HTTP_PORT=9000
@@ -20,6 +18,7 @@ DEFAULT_HTTPS_PORT=9001
 # This way, the security tokens will be reset, and the SSL certificate will be renewed.
 DEFAULT_DOCKER_IMAGE="studioetrange/cozy-service"
 DEFAULT_DOCKER_IMAGE_VERSION="latest"
+DEFAULT_SERVICE_NAME="cozy-service"
 
 function usage() {
   echo "USAGE :"
@@ -32,6 +31,7 @@ function usage() {
   echo "L     stop : stop netdata service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
+  echo "L     purge : purge service"
   echo "o-- options :"
   echo "L     --http : cozy http port"
   echo "L     --https : cozy https port"
@@ -39,7 +39,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell'
+ACTION=											'' 			a				'create start stop status shell purge'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Listening http port.
@@ -50,9 +50,10 @@ $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)"
 DOCKER_IMAGE_VERSION=$DEFAULT_DOCKER_IMAGE_VERSION
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
-DEFAULT_SERVICE_NAME="cozy-service"
-#SERVICE_NAME=$DEFAULT_SERVICE_NAME-$DOCKER_IMAGE_VERSION
 SERVICE_NAME=$DEFAULT_SERVICE_NAME
+SERVICE_DATA_NAME="$SERVICE_NAME"-data
+SERVICE_DATA_ROOT=$STELLA_APP_WORK_ROOT/$SERVICE_DATA_NAME
+
 
 # test docker engine is installed in this system
 $STELLA_API require "dockerd" "SYSTEM"
@@ -60,8 +61,18 @@ $STELLA_API require "dockerd" "SYSTEM"
 
 # https://github.com/titpetric/netdata
 if [ "$ACTION" = "create" ]; then
+
   # delete previously stored container
   docker rm $SERVICE_NAME 2>/dev/null
+
+  # create a data volume container
+  mkdir -p $SERVICE_DATA_ROOT
+  docker create --name $SERVICE_DATA_NAME \
+                -v $SERVICE_DATA_ROOT/couchdb:/var/lib/couchdb \
+                -v $SERVICE_DATA_ROOT/etc/cosy:/etc/cozy \
+                -v $SERVICE_DATA_ROOT/usr/local/cosy:/usr/local/cozy \
+                -v $SERVICE_DATA_ROOT/usr/local/var/cozy:/usr/local/var/cozy \
+                busybox true
 
   docker build --rm -t $DOCKER_URI github.com/cozy-labs/cozy-docker
 
@@ -69,7 +80,11 @@ if [ "$ACTION" = "create" ]; then
               -p $DEFAULT_HTTP_PORT:80 \
               -p $DEFAULT_HTTPS_PORT:443 \
               --name "$SERVICE_NAME" \
+              --volumes-from dbstore $SERVICE_DATA_NAME \
               $DOCKER_URI
+
+
+# VOLUME ["/var/lib/couchdb", "/etc/cozy", "/usr/local/cozy", "/usr/local/var/cozy/"]
 
 fi
 
@@ -87,4 +102,9 @@ fi
 
 if [ "$ACTION" = "shell" ]; then
   docker exec -it $SERVICE_NAME bash
+fi
+
+if [ "$ACTION" = "purge" ]; then
+  docker rm $SERVICE_NAME
+  docker rm $SERVICE_DATA_NAME
 fi
