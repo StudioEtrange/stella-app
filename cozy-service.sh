@@ -109,6 +109,9 @@ if [ "$ACTION" = "shell" ]; then
 fi
 
 if [ "$ACTION" = "purge" ]; then
+  # remove cntainers
   docker rm $SERVICE_NAME
   docker rm $SERVICE_DATA_NAME
+  # remove image
+  docker rmi $DEFAULT_DOCKER_IMAGE
 fi
