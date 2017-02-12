@@ -10,6 +10,7 @@ STELLA_APP_PROPERTIES_FILENAME="cozy-service.properties"
 # https://github.com/cozy-labs/cozy-docker
 
 # TODO mount volume to persist data
+# VOLUME ["/var/lib/couchdb", "/etc/cozy", "/usr/local/cozy", "/usr/local/var/cozy/"]
 # TODO nginx reverse proxy ? step 9 : https://docs.cozy.io/en/host/install/install-step-by-step.html
 
 DEFAULT_HTTP_PORT=9000
@@ -50,7 +51,8 @@ DOCKER_IMAGE_VERSION=$DEFAULT_DOCKER_IMAGE_VERSION
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
 DEFAULT_SERVICE_NAME="cozy-service"
-SERVICE_NAME=$DEFAULT_SERVICE_NAME-$VERSION
+#SERVICE_NAME=$DEFAULT_SERVICE_NAME-$DOCKER_IMAGE_VERSION
+SERVICE_NAME=$DEFAULT_SERVICE_NAME
 
 # test docker engine is installed in this system
 $STELLA_API require "dockerd" "SYSTEM"
