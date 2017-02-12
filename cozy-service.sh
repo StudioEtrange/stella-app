@@ -66,6 +66,7 @@ if [ "$ACTION" = "create" ]; then
   docker rm $SERVICE_NAME 2>/dev/null
 
   # create a data volume container
+  # VOLUME ["/var/lib/couchdb", "/etc/cozy", "/usr/local/cozy", "/usr/local/var/cozy/"]
   mkdir -p $SERVICE_DATA_ROOT
   mkdir -p $SERVICE_DATA_ROOT/couchdb
   mkdir -p $SERVICE_DATA_ROOT/etc/cosy
@@ -75,7 +76,7 @@ if [ "$ACTION" = "create" ]; then
                 -v $SERVICE_DATA_ROOT/couchdb:/var/lib/couchdb \
                 -v $SERVICE_DATA_ROOT/etc/cosy:/etc/cozy \
                 -v $SERVICE_DATA_ROOT/usr/local/cosy:/usr/local/cozy \
-                -v $SERVICE_DATA_ROOT/usr/local/var/cozy:/usr/local/var/cozy \
+                -v $SERVICE_DATA_ROOT/usr/local/var/cozy:/usr/local/var/cozy/ \
                 busybox true
 
   docker build --rm -t $DOCKER_URI github.com/cozy-labs/cozy-docker
@@ -86,10 +87,7 @@ if [ "$ACTION" = "create" ]; then
               --name "$SERVICE_NAME" \
               --volumes-from $SERVICE_DATA_NAME \
               $DOCKER_URI
-
-
-# VOLUME ["/var/lib/couchdb", "/etc/cozy", "/usr/local/cozy", "/usr/local/var/cozy/"]
-
+              
 fi
 
 if [ "$ACTION" = "start" ]; then
