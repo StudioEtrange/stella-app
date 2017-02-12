@@ -17,7 +17,7 @@ DEFAULT_HTTPS_PORT=9001
 # NOTE : we build our own image instead using cozy/full --
 # "It is highly recommended to build the image locally if you want to run Cozy in a production environment
 # This way, the security tokens will be reset, and the SSL certificate will be renewed.
-DEFAULT_DOCKER_IMAGE="cozy-service"
+DEFAULT_DOCKER_IMAGE="studioetrange/cozy-service"
 DEFAULT_DOCKER_IMAGE_VERSION="latest"
 
 function usage() {
@@ -45,8 +45,9 @@ HTTPS='$DEFAULT_HTTPS_PORT' 						'' 			'string'				s 			0			''		  Listening htt
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
-
-DOCKER_URI=$DEFAULT_DOCKER_IMAGE:$VERSION
+DOCKER_IMAGE_VERSION=$DEFAULT_DOCKER_IMAGE_VERSION
+DOCKER_URI=$DEFAULT_DOCKER_IMAGE
+[ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
 DEFAULT_SERVICE_NAME="cozy-service"
 SERVICE_NAME=$DEFAULT_SERVICE_NAME-$VERSION
 
