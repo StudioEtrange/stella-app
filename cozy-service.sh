@@ -17,7 +17,7 @@ DEFAULT_HTTPS_PORT=9001
 # NOTE : we build our own image instead using cozy/full --
 # "It is highly recommended to build the image locally if you want to run Cozy in a production environment
 # This way, the security tokens will be reset, and the SSL certificate will be renewed.
-DEFAULT_DOCKER_IMAGE="cozy-service/full"
+DEFAULT_DOCKER_IMAGE="studioetrange/cozyfull"
 DEFAULT_DOCKER_IMAGE_VERSION="latest"
 
 function usage() {
