@@ -13,9 +13,9 @@ STELLA_APP_PROPERTIES_FILENAME="cozy-service.properties"
 
 DEFAULT_HTTP_PORT=9000
 DEFAULT_HTTPS_PORT=9001
-# NOTE : we build our own image instead using cozy/full --
+# NOTE : we build our own image instead using cozy/full
 # "It is highly recommended to build the image locally if you want to run Cozy in a production environment
-# This way, the security tokens will be reset, and the SSL certificate will be renewed.
+# This way, the security tokens will be reset, and the SSL certificate will be renewed."
 DEFAULT_DOCKER_IMAGE="studioetrange/cozy-service"
 DEFAULT_DOCKER_IMAGE_VERSION="latest"
 DEFAULT_SERVICE_NAME="cozy-service"
@@ -87,7 +87,7 @@ if [ "$ACTION" = "create" ]; then
               --name "$SERVICE_NAME" \
               --volumes-from $SERVICE_DATA_NAME \
               $DOCKER_URI
-              
+
 fi
 
 if [ "$ACTION" = "start" ]; then
@@ -111,5 +111,5 @@ if [ "$ACTION" = "purge" ]; then
   docker rm $SERVICE_NAME
   docker rm $SERVICE_DATA_NAME
   # remove image
-  docker rmi $DEFAULT_DOCKER_IMAGE
+  docker rmi $DOCKER_URI
 fi
