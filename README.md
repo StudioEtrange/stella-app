@@ -20,9 +20,14 @@ nor polluted the system.
   ./lightgbm-python.sh -h
 ```
 
-* netdata-service : install netdata https://my-netdata.io/ (netdata itself run only on linux) -- NEEDS : docker
+* netdata-service : install netdata https://my-netdata.io/ -- NEEDS : docker
 ```
   ./netdata.sh -h
+```
+
+* cozy-service : install cozy https://cozy.io -- NEEDS : docker
+```
+  ./cozy-service.sh -h
 ```
 
 ## Specific for a system
