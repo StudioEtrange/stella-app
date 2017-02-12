@@ -22,6 +22,7 @@ function usage() {
   echo "L     start [--version=<version>] : start netdata service"
   echo "L     stop [--version=<version>] : stop netdata service"
   echo "L     status : give service status info"
+  echo "L     shell : launch a shell inside service"
   echo "o-- options :"
   echo "L     --port : netdata listening port"
   echo "L     --ip : netdata listening ip"
@@ -30,7 +31,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status'
+ACTION=											'' 			a				'create start stop status shell'
 "
 OPTIONS="
 IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  Listening ip.
@@ -78,4 +79,8 @@ fi
 
 if [ "$ACTION" = "status" ]; then
   docker ps | grep $DEFAULT_SERVICE_NAME
+fi
+
+if [ "$ACTION" = "shell" ]; then
+  docker exec -it $SERVICE_NAME bash
 fi
