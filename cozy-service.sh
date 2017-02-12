@@ -1,31 +1,38 @@
 #!/usr/bin/env bash
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
-STELLA_APP_PROPERTIES_FILENAME="netdata-service.properties"
+STELLA_APP_PROPERTIES_FILENAME="cozy-service.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
-# https://github.com/firehol/netdata
-# https://github.com/titpetric/netdata
+# https://cozy.io
+# https://docs.cozy.io/en/host/install/install-on-docker.html
+# https://docs.cozy.io/en/host/install/install-step-by-step.html
+# https://github.com/cozy-labs/cozy-docker
 
-DEFAULT_PORT=19999
-DEFAULT_IP="0.0.0.0"
-DEFAULT_DOCKER_IMAGE="titpetric/netdata"
+# TODO mount volume to persist data
+# TODO nginx reverse proxy ? step 9 : https://docs.cozy.io/en/host/install/install-step-by-step.html
+
+DEFAULT_HTTP_PORT=19999
+DEFAULT_HTTPS_PORT=19999
+# NOTE : we build our own image instead using cozy/full --
+# "It is highly recommended to build the image locally if you want to run Cozy in a production environment
+# This way, the security tokens will be reset, and the SSL certificate will be renewed.
+DEFAULT_DOCKER_IMAGE="cozy-service/full"
 DEFAULT_DOCKER_IMAGE_VERSION="latest"
 
 function usage() {
 	echo "USAGE :"
-  echo "deploy netdata in a docker instance for monitoring current host"
+  echo "deploy cozy in a docker instance"
 	echo "NOTE : require docker on your system"
 	echo "----------------"
 	echo "o-- parametres :"
-  echo "L     create [--version=<version>] [--ip=<ip>] [--port=<port>] : create & launch netdata service (must be use once before starting/stopping service)"
-	echo "L     start [--version=<version>] : start netdata service"
-  echo "L     stop [--version=<version>] : stop netdata service"
+  echo "L     create [--httpport=<port>] [--httpsport=<port>] : create & launch cozy service (must be use once before starting/stopping service)"
+	echo "L     start : start netdata service"
+  echo "L     stop : stop netdata service"
   echo "L     status : give service status info"
 	echo "o-- options :"
-	echo "L     --port : netdata listening port"
-	echo "L     --ip : netdata listening ip"
-	echo "L     --version : netdata version"
+	echo "L     --httpport : cozy http port"
+	echo "L     --httpsport : cozy https port"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
@@ -42,8 +49,7 @@ $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)"
 
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE:$VERSION
 DEFAULT_SERVICE_NAME="netdata-service"
-#SERVICE_NAME=$DEFAULT_SERVICE_NAME-$VERSION
-SERVICE_NAME=$DEFAULT_SERVICE_NAME
+SERVICE_NAME=$DEFAULT_SERVICE_NAME-$VERSION
 
 # test docker engine is installed in this system
 $STELLA_API require "dockerd" "SYSTEM"
@@ -53,14 +59,12 @@ $STELLA_API require "dockerd" "SYSTEM"
 if [ "$ACTION" = "create" ]; then
 	# delete previously stored container
 	docker rm $SERVICE_NAME 2>/dev/null
-	
-  docker run -d --cap-add SYS_PTRACE \
-              -v /proc:/host/proc:ro \
-              -v /sys:/host/sys:ro \
-              -e NETDATA_PORT=$PORT \
-							-e NETDATA_IP=$IP \
-              --net=host \
-              -v /var/run/docker.sock:/var/run/docker.sock \
+
+	docker build -t $DOCKER_URI github.com/cozy-labs/cozy-docker
+
+  docker run -d \
+              -p $DEFAULT_HTTP_PORT:80 \
+							-p $DEFAULT_HTTPS_PORT:443 \
               --name "$SERVICE_NAME" \
               $DOCKER_URI
 

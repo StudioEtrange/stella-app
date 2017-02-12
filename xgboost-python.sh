@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
+STELLA_APP_PROPERTIES_FILENAME="xgboost-python.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
 
