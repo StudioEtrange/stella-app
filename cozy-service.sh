@@ -18,6 +18,7 @@ DEFAULT_HTTPS_PORT=9001
 DEFAULT_DOCKER_IMAGE="studioetrange/cozy-service"
 DEFAULT_DOCKER_IMAGE_VERSION="latest"
 DEFAULT_SERVICE_NAME="cozy-service"
+DEFAULT_DOCKER_BUILD_URI="github.com/StudioEtrange/cozy-docker"
 
 function usage() {
   echo "USAGE :"
@@ -30,7 +31,7 @@ function usage() {
   echo "L     stop : stop netdata service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
-  echo "L     purge : purge service & data"
+  echo "L     purge : purge service & data (may need sudo)"
   echo "o-- options :"
   echo "L     --http : cozy http port"
   echo "L     --https : cozy https port"
@@ -78,9 +79,9 @@ if [ "$ACTION" = "create" ]; then
                 -v $SERVICE_DATA_ROOT/etc/cosy:/etc/cozy \
                 -v $SERVICE_DATA_ROOT/usr/local/cosy:/usr/local/cozy \
                 -v $SERVICE_DATA_ROOT/usr/local/var/cozy:/usr/local/var/cozy/ \
-                busybox true
+                alpine /bin/true
 
-  docker build --rm -t $DOCKER_URI github.com/cozy-labs/cozy-docker
+  docker build --rm -t "$DOCKER_URI" "$DEFAULT_DOCKER_BUILD_URI"
 
   docker run -d \
               -p $DEFAULT_HTTP_PORT:80 \
@@ -114,5 +115,5 @@ if [ "$ACTION" = "purge" ]; then
   # remove image
   docker rmi $DOCKER_URI
   # remove data
-  rm -Rf $SERVICE_DATA_ROOT
+  sudo rm -Rf $SERVICE_DATA_ROOT
 fi
