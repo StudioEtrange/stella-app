@@ -77,7 +77,7 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "status" ]; then
-  docker ps | grep $DEFAULT_SERVICE_NAME
+  docker stats $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "shell" ]; then

@@ -9,7 +9,6 @@ STELLA_APP_PROPERTIES_FILENAME="cozy-service.properties"
 # https://docs.cozy.io/en/host/install/install-step-by-step.html
 # https://github.com/cozy-labs/cozy-docker
 
-# TODO nginx reverse proxy ? step 9 : https://docs.cozy.io/en/host/install/install-step-by-step.html
 
 DEFAULT_HTTP_PORT=9000
 DEFAULT_HTTPS_PORT=9001
@@ -31,7 +30,7 @@ function usage() {
   echo "L     stop : stop netdata service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
-  echo "L     purge : purge service"
+  echo "L     purge : purge service & data"
   echo "o-- options :"
   echo "L     --http : cozy http port"
   echo "L     --https : cozy https port"
@@ -58,20 +57,22 @@ SERVICE_DATA_ROOT=$STELLA_APP_WORK_ROOT/$SERVICE_DATA_NAME
 # test docker engine is installed in this system
 $STELLA_API require "dockerd" "SYSTEM"
 
+# install all requirement
+#$STELLA_API get_features
+#$STELLA_API feature_info shml "SHML"
+#[ ! "$SHML_TEST_FEATURE" = "0" ] && . $SHML_FEAT_INSTALL_ROOT/shml.sh
+
 
 # https://github.com/titpetric/netdata
 if [ "$ACTION" = "create" ]; then
+
+
 
   # delete previously stored container
   docker rm $SERVICE_NAME 2>/dev/null
 
   # create a data volume container
   # VOLUME ["/var/lib/couchdb", "/etc/cozy", "/usr/local/cozy", "/usr/local/var/cozy/"]
-  mkdir -p $SERVICE_DATA_ROOT
-  mkdir -p $SERVICE_DATA_ROOT/couchdb
-  mkdir -p $SERVICE_DATA_ROOT/etc/cosy
-  mkdir -p $SERVICE_DATA_ROOT/usr/local/cosy
-  mkdir -p $SERVICE_DATA_ROOT/usr/local/var/cozy
   docker create --name $SERVICE_DATA_NAME \
                 -v $SERVICE_DATA_ROOT/couchdb:/var/lib/couchdb \
                 -v $SERVICE_DATA_ROOT/etc/cosy:/etc/cozy \
@@ -99,7 +100,7 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "status" ]; then
-  docker ps | grep $DEFAULT_SERVICE_NAME
+  docker stats $SERVICE_NAME $SERVICE_DATA_NAME
 fi
 
 if [ "$ACTION" = "shell" ]; then
@@ -112,4 +113,6 @@ if [ "$ACTION" = "purge" ]; then
   docker rm $SERVICE_DATA_NAME
   # remove image
   docker rmi $DOCKER_URI
+  # remove data
+  rm -Rf $SERVICE_DATA_ROOT
 fi
