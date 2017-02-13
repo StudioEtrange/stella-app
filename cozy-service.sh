@@ -31,7 +31,7 @@ function usage() {
   echo "L     stop : stop netdata service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
-  echo "L     purge : purge service & data (may need sudo)"
+  echo "L     purge : purge service & data"
   echo "o-- options :"
   echo "L     --http : cozy http port"
   echo "L     --https : cozy https port"
@@ -67,13 +67,18 @@ $STELLA_API require "dockerd" "SYSTEM"
 # https://github.com/titpetric/netdata
 if [ "$ACTION" = "create" ]; then
 
-
-
   # delete previously stored container
   docker rm $SERVICE_NAME 2>/dev/null
+  docker rm $SERVICE_DATA_NAME 2>/dev/null
 
   # create a data volume container
   # VOLUME ["/var/lib/couchdb", "/etc/cozy", "/usr/local/cozy", "/usr/local/var/cozy/"]
+  mkdir -p "$SERVICE_DATA_ROOT/usr/local/var/cozy" \
+            "$SERVICE_DATA_ROOT/usr/local/cosy" \
+            "$SERVICE_DATA_ROOT/etc/cosy" \
+            "$SERVICE_DATA_ROOT/couchdb"
+  chmod -R 777 "$SERVICE_DATA_ROOT"
+
   docker create --name $SERVICE_DATA_NAME \
                 -v $SERVICE_DATA_ROOT/couchdb:/var/lib/couchdb \
                 -v $SERVICE_DATA_ROOT/etc/cosy:/etc/cozy \
@@ -115,5 +120,5 @@ if [ "$ACTION" = "purge" ]; then
   # remove image
   docker rmi $DOCKER_URI
   # remove data
-  sudo rm -Rf $SERVICE_DATA_ROOT
+  rm -Rf $SERVICE_DATA_ROOT
 fi
