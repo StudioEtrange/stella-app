@@ -35,8 +35,8 @@ PARAMETERS="
 ACTION=											'' 			a				'create start stop status shell'
 "
 OPTIONS="
-IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  Listening ip.
-PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening port.
+IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  Listening netdata ip.
+PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening netdata port.
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Netdata version (check available version on netdata website).
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
