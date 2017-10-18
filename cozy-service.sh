@@ -56,7 +56,7 @@ SERVICE_DATA_ROOT=$STELLA_APP_WORK_ROOT/$SERVICE_DATA_NAME
 
 
 # test docker engine is installed in this system
-$STELLA_API require "dockerd" "SYSTEM"
+$STELLA_API require "dockerd" "docker" "SYSTEM"
 
 # install all requirement
 #$STELLA_API get_features
