@@ -62,7 +62,9 @@ if [ "$ACTION" = "create" ]; then
     docker rm $SERVICE_NAME 2>/dev/null
 
     [ ! "$LOGIN" = "" ] && [ ! "$PASSWORD" = "" ] && with_auth=1
-        
+    
+    # auth is a start option of cloud9
+    # for other start option see here https://github.com/c9/core
     if [ "$with_auth" = "1" ]; then
         docker run -d \
             -p $HTTP:8181 \
