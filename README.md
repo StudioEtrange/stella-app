@@ -30,6 +30,11 @@ nor polluted the system.
   ./cozy-service.sh -h
 ```
 
+* cloud9-service : install cloud9 dev env into your current host https://c9.io -- NEEDS : docker
+```
+  ./cloud9-service.sh -h
+```
+
 ## Specific for a system
 
 These scripts are tied to specific systems, and may install items inside the system.

@@ -23,15 +23,17 @@ function usage() {
   echo "NOTE : require docker on your system"
   echo "----------------"
   echo "o-- parametres :"
-  echo "L     create [--version=<version>] [--ip=<ip>] [--port=<port>] : create & launch service (must be use once before starting/stopping service)"
+  echo "L     create [--version=<version>] [--http=<port>] [--workspace=<path>] [--login=<string>] [--password=<string>] : create & launch service (must be use once before starting/stopping service)"
   echo "L     start [--version=<version>] : start service"
   echo "L     stop [--version=<version>] : stop service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
   echo "o-- options :"
-  echo "L     --port : listening port"
-  echo "L     --ip : listening ip"
-  echo "L     --version : version"
+  echo "L     --http : cloud9 http port"
+  echo "L     --workspace : Mounted workspace folder into cloud9"
+  echo "L     --login : optional login protection"
+  echo "L     --password : optional password protection"
+  echo "L     --version : cloud9 image version"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
@@ -41,7 +43,7 @@ ACTION=											'' 			a				'create start stop status shell'
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Listening cloud9 http port.
 WORKSPACE='$DEFAULT_WORKSPACE' 						'' 			'string'				s 			0			''		  Mounted workspace folder into cloud9
-VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Netdata version (check available version on netdata website).
+VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Cloud9 image version.
 LOGIN='$DEFAULT_LOGIN' 						'' 			'string'				s 			0			''		  optional login protection
 PASSWORD='$DEFAULT_PASSWORD' 						'' 			'string'				s 			0			''		  optional password protection
 "
