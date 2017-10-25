@@ -29,11 +29,11 @@ function usage() {
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
   echo "o-- options :"
-  echo "L     --http : cloud9 http port"
+  echo "L     --http : cloud9 http port. By default : $DEFAULT_HTTP_PORT"
   echo "L     --workspace : Mounted workspace folder into cloud9. By default $DEFAULT_WORKSPACE directory is mounted, and file permissions used inside that folder are yours"
   echo "L     --login : optional login protection"
   echo "L     --password : optional password protection"
-  echo "L     --version : cloud9 image version"
+  echo "L     --version : cloud9 image version. By default : $DEFAULT_DOCKER_IMAGE_VERSION"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
