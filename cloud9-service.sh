@@ -76,14 +76,14 @@ if [ "$ACTION" = "create" ]; then
             $DOCKER_URI \
             --auth "$LOGIN":"$PASSWORD"
     else
-        #providing auth option with no value, authorize exposing cloud9 to anywhere without any login
+        # providing auth option with ":" as value, authorize exposing cloud9 to any IP without any login:password
         docker run -d \
             -p $HTTP:8181 \
             -u $(id -u):$(id -g) \
             --name "$SERVICE_NAME" \
             -v $WORKSPACE:/workspace \
             $DOCKER_URI \
-            --auth
+            --auth :
     fi
 
 fi
