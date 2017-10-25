@@ -14,7 +14,7 @@ DEFAULT_LOGIN=
 DEFAULT_PASSWORD=
 
 DEFAULT_DOCKER_IMAGE="sapk/cloud9"
-DEFAULT_DOCKER_IMAGE_VERSION="latest"
+DEFAULT_DOCKER_IMAGE_VERSION="alpine"
 DEFAULT_SERVICE_NAME="cloud9-service"
 
 function usage() {
@@ -60,10 +60,16 @@ $STELLA_API require "dockerd" "SYSTEM"
 
 
 if [ "$ACTION" = "create" ]; then
-    # delete previously stored container
+    # delete and stop previously stored container
+    docker stop $SERVICE_NAME 2>/dev/null
     docker rm $SERVICE_NAME 2>/dev/null
 
-    [ ! "$LOGIN" = "" ] && [ ! "$PASSWORD" = "" ] && with_auth=1
+    with_auth=
+    if [ ! "$LOGIN" = "" ]; then
+	if [ ! "$PASSWORD" = "" ]; then
+	   with_auth=1
+	fi
+    fi
     
     # auth is a start option of cloud9
     # for other start option see here https://github.com/c9/core
@@ -83,7 +89,7 @@ if [ "$ACTION" = "create" ]; then
             --name "$SERVICE_NAME" \
             -v $WORKSPACE:/workspace \
             $DOCKER_URI \
-            --auth :
+            --auth ":"
     fi
 
 fi
