@@ -30,7 +30,7 @@ function usage() {
   echo "L     shell : launch a shell inside running service"
   echo "o-- options :"
   echo "L     --http : cloud9 http port"
-  echo "L     --workspace : Mounted workspace folder into cloud9"
+  echo "L     --workspace : Mounted workspace folder into cloud9. By default $DEFAULT_WORKSPACE directory is mounted, and file permissions used inside that folder are yours"
   echo "L     --login : optional login protection"
   echo "L     --password : optional password protection"
   echo "L     --version : cloud9 image version"
@@ -70,6 +70,7 @@ if [ "$ACTION" = "create" ]; then
     if [ "$with_auth" = "1" ]; then
         docker run -d \
             -p $HTTP:8181 \
+            -u $(id -u):$(id -g) \
             --name "$SERVICE_NAME" \
             -v $WORKSPACE:/workspace \
             $DOCKER_URI \
@@ -77,6 +78,7 @@ if [ "$ACTION" = "create" ]; then
     else
         docker run -d \
             -p $HTTP:8181 \
+            -u $(id -u):$(id -g) \
             --name "$SERVICE_NAME" \
             -v $WORKSPACE:/workspace \
             $DOCKER_URI
