@@ -8,6 +8,10 @@ STELLA_APP_PROPERTIES_FILENAME="netdata-service.properties"
 # https://hub.docker.com/r/sapk/cloud9/
 # https://github.com/sapk/dockerfiles
 
+# TODO : still have problem with file permission on workspace
+# should use stat on a bind mount to detect uid as runtime and launch nodejs with this user
+# see https://github.com/Graham42/mapped-uid-docker
+
 DEFAULT_HTTP_PORT=20001
 DEFAULT_WORKSPACE="$HOME"
 DEFAULT_LOGIN=
@@ -76,7 +80,6 @@ if [ "$ACTION" = "create" ]; then
     if [ "$with_auth" = "1" ]; then
         docker run -d \
             -p $HTTP:8181 \
-            -u $(id -u):$(id -g) \
             --name "$SERVICE_NAME" \
             -v $WORKSPACE:/workspace \
             $DOCKER_URI \
@@ -85,11 +88,10 @@ if [ "$ACTION" = "create" ]; then
         # providing auth option with ":" as value, authorize exposing cloud9 to any IP without any login:password
         docker run -d \
             -p $HTTP:8181 \
-            -u $(id -u):$(id -g) \
             --name "$SERVICE_NAME" \
             -v $WORKSPACE:/workspace \
             $DOCKER_URI \
-            --auth ":"
+            --auth :
     fi
 
 fi
