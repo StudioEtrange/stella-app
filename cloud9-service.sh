@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
-STELLA_APP_PROPERTIES_FILENAME="netdata-service.properties"
+STELLA_APP_PROPERTIES_FILENAME="cloud9-service.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
 # https://c9.io/
@@ -11,6 +11,7 @@ STELLA_APP_PROPERTIES_FILENAME="netdata-service.properties"
 # TODO : still have problem with file permission on workspace
 # should use stat on a bind mount to detect uid as runtime and launch nodejs with this user
 # see https://github.com/Graham42/mapped-uid-docker
+# BUT other problem : cloud9 needs to be executed as root...
 
 DEFAULT_HTTP_PORT=20001
 DEFAULT_WORKSPACE="$HOME"
