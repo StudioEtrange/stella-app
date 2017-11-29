@@ -88,7 +88,8 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "status" ]; then
-  docker stats $SERVICE_NAME
+  #docker stats $SERVICE_NAME
+  docker ps | grep $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "shell" ]; then
