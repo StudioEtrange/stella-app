@@ -7,6 +7,10 @@ STELLA_APP_PROPERTIES_FILENAME="netdata-service.properties"
 # https://github.com/firehol/netdata
 # https://github.com/titpetric/netdata
 
+# NOTE:
+#   to have only start|stop|purge|status command,
+#   start could be replaced with the combination of stop AND create
+
 DEFAULT_PORT=19999
 DEFAULT_IP="0.0.0.0"
 DEFAULT_DOCKER_IMAGE="titpetric/netdata"
