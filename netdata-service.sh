@@ -20,8 +20,9 @@ function usage() {
   echo "----------------"
   echo "o-- parametres :"
   echo "L     create [--version=<version>] [--ip=<ip>] [--port=<port>] : create & launch netdata service (must be use once before starting/stopping service)"
-  echo "L     start [--version=<version>] : start netdata service"
-  echo "L     stop [--version=<version>] : stop netdata service"
+  echo "L     start : start netdata service"
+  echo "L     stop : stop netdata service"
+  echo "L     purge [--version=<version>] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
   echo "o-- options :"
@@ -32,7 +33,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell'
+ACTION=											'' 			a				'create start stop status shell purge'
 "
 OPTIONS="
 IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  Listening netdata ip.
@@ -66,6 +67,12 @@ if [ "$ACTION" = "create" ]; then
               --name "$SERVICE_NAME" \
               $DOCKER_URI
 
+fi
+
+if [ "$ACTION" = "purge" ]; then
+  docker stop $SERVICE_NAME 2>/dev/null
+  docker rm $SERVICE_NAME 2>/dev/null
+  docker rmi $DOCKER_URI 2>/dev/null
 fi
 
 if [ "$ACTION" = "start" ]; then
