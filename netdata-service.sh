@@ -59,6 +59,7 @@ $STELLA_API require "dockerd" "SYSTEM"
 # https://github.com/titpetric/netdata
 if [ "$ACTION" = "create" ]; then
   # delete previously stored container
+  docker stop $SERVICE_NAME 2>/dev/null
   docker rm $SERVICE_NAME 2>/dev/null
 
   docker run -d --cap-add SYS_PTRACE \

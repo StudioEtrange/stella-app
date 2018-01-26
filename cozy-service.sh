@@ -15,6 +15,7 @@ DEFAULT_HTTPS_PORT=9001
 # NOTE : we build our own image instead using cozy/full
 # "It is highly recommended to build the image locally if you want to run Cozy in a production environment
 # This way, the security tokens will be reset, and the SSL certificate will be renewed."
+# TODO files in SERVICE_DATA_ROOT do they have right file permissions ?
 DEFAULT_DOCKER_IMAGE="studioetrange/cozy-service"
 DEFAULT_DOCKER_IMAGE_VERSION="latest"
 DEFAULT_SERVICE_NAME="cozy-service"
@@ -115,10 +116,10 @@ fi
 
 if [ "$ACTION" = "purge" ]; then
   # remove cntainers
-  docker rm $SERVICE_NAME
-  docker rm $SERVICE_DATA_NAME
-  # remove image
-  docker rmi $DOCKER_URI
+  docker stop $SERVICE_NAME 2>/dev/null
+  docker rm $SERVICE_NAME 2>/dev/null
+  # remove volume
+  docker rm $SERVICE_DATA_NAME 2>/dev/null
   # remove data
   rm -Rf $SERVICE_DATA_ROOT
 fi
