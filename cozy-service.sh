@@ -9,13 +9,14 @@ STELLA_APP_PROPERTIES_FILENAME="cozy-service.properties"
 # https://docs.cozy.io/en/host/install/install-step-by-step.html
 # https://github.com/cozy-labs/cozy-docker
 
-
-DEFAULT_HTTP_PORT=9000
-DEFAULT_HTTPS_PORT=9001
 # NOTE : we build our own image instead using cozy/full
 # "It is highly recommended to build the image locally if you want to run Cozy in a production environment
 # This way, the security tokens will be reset, and the SSL certificate will be renewed."
-# TODO files in SERVICE_DATA_ROOT do they have right file permissions ?
+
+
+DEFAULT_HTTP_PORT=9000
+DEFAULT_HTTPS_PORT=9001
+
 DEFAULT_DOCKER_IMAGE="studioetrange/cozy-service"
 DEFAULT_DOCKER_IMAGE_VERSION="latest"
 DEFAULT_SERVICE_NAME="cozy-service"
@@ -28,8 +29,8 @@ function usage() {
   echo "----------------"
   echo "o-- parametres :"
   echo "L     create [--http=<port>] [--https=<port>] : create & launch cozy service (must be use once before starting/stopping service)"
-  echo "L     start : start netdata service"
-  echo "L     stop : stop netdata service"
+  echo "L     start : start cozy service"
+  echo "L     stop : stop cozy service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
   echo "L     purge : purge service & data"
@@ -64,36 +65,59 @@ $STELLA_API require "dockerd" "docker" "SYSTEM"
 #$STELLA_API feature_info shml "SHML"
 #[ ! "$SHML_TEST_FEATURE" = "0" ] && . $SHML_FEAT_INSTALL_ROOT/shml.sh
 
+__local_bindfs_volume_create() {
+	__volume_name="$1"
+	__local_path="$2"
+
+	docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/0:@$UID/@0 --name "$__volume_name" 2>/dev/null
+}
+
+
+__require_bindfs_docker_plugin() {
+  docker plugin inspect lebokus/bindfs 1>/dev/null 2>&1
+  if [ "$?" = "1" ]; then
+    echo "** Install docker volume plugin bindfs"
+    docker plugin install lebokus/bindfs
+  fi
+}
+
+
 
 # https://github.com/titpetric/netdata
 if [ "$ACTION" = "create" ]; then
-
-  # delete previously stored container
+  # delete and stop previously stored container and volume
+  docker stop $SERVICE_NAME 2>/dev/null
   docker rm $SERVICE_NAME 2>/dev/null
   docker rm $SERVICE_DATA_NAME 2>/dev/null
+  docker volume rm "${SERVICE_DATA_NAME}-1" 2>/dev/null
+  docker volume rm "${SERVICE_DATA_NAME}-2" 2>/dev/null
+  docker volume rm "${SERVICE_DATA_NAME}-3" 2>/dev/null
+  docker volume rm "${SERVICE_DATA_NAME}-4" 2>/dev/null
 
-  # create a data volume container
-  # VOLUME ["/var/lib/couchdb", "/etc/cozy", "/usr/local/cozy", "/usr/local/var/cozy/"]
+  # create a volume container
+  # matching VOLUME ["/var/lib/couchdb", "/etc/cozy", "/usr/local/cozy", "/usr/local/var/cozy/"]
   mkdir -p "$SERVICE_DATA_ROOT/usr/local/var/cozy" \
             "$SERVICE_DATA_ROOT/usr/local/cosy" \
             "$SERVICE_DATA_ROOT/etc/cosy" \
-            "$SERVICE_DATA_ROOT/couchdb"
-  chmod -R 777 "$SERVICE_DATA_ROOT"
+            "$SERVICE_DATA_ROOT/var/lib/couchdb"
 
-  docker create --name $SERVICE_DATA_NAME \
-                -v $SERVICE_DATA_ROOT/couchdb:/var/lib/couchdb \
-                -v $SERVICE_DATA_ROOT/etc/cosy:/etc/cozy \
-                -v $SERVICE_DATA_ROOT/usr/local/cosy:/usr/local/cozy \
-                -v $SERVICE_DATA_ROOT/usr/local/var/cozy:/usr/local/var/cozy/ \
-                alpine /bin/true
+  __require_bindfs_docker_plugin
+  __local_bindfs_volume_create "${SERVICE_DATA_NAME}-1" "$SERVICE_DATA_ROOT/usr/local/var/cozy"
+  __local_bindfs_volume_create "${SERVICE_DATA_NAME}-2" "$SERVICE_DATA_ROOT/usr/local/cosy"
+  __local_bindfs_volume_create "${SERVICE_DATA_NAME}-3" "$SERVICE_DATA_ROOT/etc/cosy"
+  __local_bindfs_volume_create "${SERVICE_DATA_NAME}-4" "$SERVICE_DATA_ROOT/var/lib/couchdb"
 
+  # build image
   docker build --rm -t "$DOCKER_URI" "$DEFAULT_DOCKER_BUILD_URI"
 
   docker run -d \
               -p $DEFAULT_HTTP_PORT:80 \
               -p $DEFAULT_HTTPS_PORT:443 \
               --name "$SERVICE_NAME" \
-              --volumes-from $SERVICE_DATA_NAME \
+              --volume "${SERVICE_DATA_NAME}-1":/usr/local/var/cozy/ \
+              --volume "${SERVICE_DATA_NAME}-2":/usr/local/cozy \
+              --volume "${SERVICE_DATA_NAME}-3":/etc/cozy \
+              --volume "${SERVICE_DATA_NAME}-4":/var/lib/couchdb \
               $DOCKER_URI
 
 fi
@@ -119,7 +143,12 @@ if [ "$ACTION" = "purge" ]; then
   docker stop $SERVICE_NAME 2>/dev/null
   docker rm $SERVICE_NAME 2>/dev/null
   # remove volume
-  docker rm $SERVICE_DATA_NAME 2>/dev/null
+  docker volume rm "${SERVICE_DATA_NAME}-1" 2>/dev/null
+  docker volume rm "${SERVICE_DATA_NAME}-2" 2>/dev/null
+  docker volume rm "${SERVICE_DATA_NAME}-3" 2>/dev/null
+  docker volume rm "${SERVICE_DATA_NAME}-4" 2>/dev/null
+  # remove image
+  docker rmi $DOCKER_URI 2>/dev/null
   # remove data
   rm -Rf $SERVICE_DATA_ROOT
 fi

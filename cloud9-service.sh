@@ -61,16 +61,15 @@ SERVICE_DATA_NAME="vol-$SERVICE_NAME"
 # test docker engine is installed in this system
 $STELLA_API require "dockerd" "SYSTEM"
 
+
 __local_bindfs_volume_create() {
 	__volume_name="$1"
 	__local_path="$2"
-
-	docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/0:@$UID/@0 --name "$__volume_name"
+	docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/0:@$UID/@0 --name "$__volume_name" 2>/dev/null
 }
 
-
 __require_bindfs_docker_plugin() {
-  docker plugin inspect lebokus/bindfs 1>&2 2>/dev/null
+  docker plugin inspect lebokus/bindfs 1>/dev/null 2>&1
   if [ "$?" = "1" ]; then
     echo "** Install docker volume plugin bindfs"
     docker plugin install lebokus/bindfs
@@ -80,7 +79,7 @@ __require_bindfs_docker_plugin() {
 
 
 if [ "$ACTION" = "create" ]; then
-    # delete and stop previously stored container
+    # delete and stop previously stored container and volume
     docker stop $SERVICE_NAME 2>/dev/null
     docker rm $SERVICE_NAME 2>/dev/null
     docker volume rm "$SERVICE_DATA_NAME" 2>/dev/null
@@ -141,7 +140,6 @@ if [ "$ACTION" = "purge" ]; then
   docker rm $SERVICE_NAME 2>/dev/null
   # remove volume
   docker volume rm "$SERVICE_DATA_NAME" 2>/dev/null
-
   # remove image
   docker rmi $DOCKER_URI 2>/dev/null
 fi
