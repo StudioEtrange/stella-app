@@ -65,7 +65,7 @@ __local_bindfs_volume_create() {
 	__volume_name="$1"
 	__local_path="$2"
 
-	__log_run docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/0:@$UID/@0 --name "$__volume_name"
+	docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/0:@$UID/@0 --name "$__volume_name"
 }
 
 
