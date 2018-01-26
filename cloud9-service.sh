@@ -65,7 +65,14 @@ $STELLA_API require "dockerd" "SYSTEM"
 __local_bindfs_volume_create() {
 	__volume_name="$1"
 	__local_path="$2"
-	docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/0:@$UID/@0 --name "$__volume_name" 2>/dev/null
+  # user uid inside container
+  __uid="$3"
+  # group gid inside container
+  __gid="$4"
+  [ "$__uid" = "" ] && __uid="0"
+  [ "$__gid" = "" ] && __gid="0"
+
+	docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/$__uid:@$UID/@$__gid --name "$__volume_name" 2>/dev/null
 }
 
 __require_bindfs_docker_plugin() {

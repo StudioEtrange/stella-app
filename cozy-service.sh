@@ -13,6 +13,9 @@ STELLA_APP_PROPERTIES_FILENAME="cozy-service.properties"
 # "It is highly recommended to build the image locally if you want to run Cozy in a production environment
 # This way, the security tokens will be reset, and the SSL certificate will be renewed."
 
+# TODO ; still have some pb with file permission
+# TODO : upgrade docker cosy image, this one is deprecated
+#         try this one https://github.com/cozy/gozy-docker
 
 DEFAULT_HTTP_PORT=9000
 DEFAULT_HTTPS_PORT=9001
@@ -68,8 +71,14 @@ $STELLA_API require "dockerd" "docker" "SYSTEM"
 __local_bindfs_volume_create() {
 	__volume_name="$1"
 	__local_path="$2"
+  # user uid inside container
+  __uid="$3"
+  # group gid inside container
+  __gid="$4"
+  [ "$__uid" = "" ] && __uid="0"
+  [ "$__gid" = "" ] && __gid="0"
 
-	docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/0:@$UID/@0 --name "$__volume_name" 2>/dev/null
+	docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/$__uid:@$UID/@$__gid --name "$__volume_name" 2>/dev/null
 }
 
 
@@ -102,10 +111,13 @@ if [ "$ACTION" = "create" ]; then
             "$SERVICE_DATA_ROOT/var/lib/couchdb"
 
   __require_bindfs_docker_plugin
+  # TODO : inside var/cosy there is a lof of folder with too much differents user:group ownerships
   __local_bindfs_volume_create "${SERVICE_DATA_NAME}-1" "$SERVICE_DATA_ROOT/usr/local/var/cozy"
+  # TODO : inside /usr/local/cosy there is a lof of folder with too much differents user:group ownerships
   __local_bindfs_volume_create "${SERVICE_DATA_NAME}-2" "$SERVICE_DATA_ROOT/usr/local/cosy"
+  # TODO : inside /usr/local/cosy there is a two folders with 2 differents user:group ownerships
   __local_bindfs_volume_create "${SERVICE_DATA_NAME}-3" "$SERVICE_DATA_ROOT/etc/cosy"
-  __local_bindfs_volume_create "${SERVICE_DATA_NAME}-4" "$SERVICE_DATA_ROOT/var/lib/couchdb"
+  __local_bindfs_volume_create "${SERVICE_DATA_NAME}-4" "$SERVICE_DATA_ROOT/var/lib/couchdb" "102" "106"
 
   # build image
   docker build --rm -t "$DOCKER_URI" "$DEFAULT_DOCKER_BUILD_URI"
