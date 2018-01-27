@@ -20,10 +20,10 @@ DEFAULT_SERVICE_NAME="cloud9-service"
 
 function usage() {
   echo "USAGE :"
-  echo "deploy cloud9 in a docker instance on current host to get a web IDE for developement"
+  echo "cloud9 servivce as a docker container on current host to get a web IDE for developement"
   echo "NOTE : require docker on your system"
   echo "----------------"
-  echo "o-- parametres :"
+  echo "o-- command :"
   echo "L     create [--version=<version>] [--http=<port>] [--workspace=<path>] [--login=<string>] [--password=<string>] : create & launch service (must be use once before starting/stopping service)"
   echo "L     start [--version=<version>] : start service"
   echo "L     stop [--version=<version>] : stop service"
@@ -58,8 +58,8 @@ DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 SERVICE_NAME=$DEFAULT_SERVICE_NAME
 SERVICE_DATA_NAME="vol-$SERVICE_NAME"
 
-# test docker engine is installed in this system
-$STELLA_API require "dockerd" "SYSTEM"
+# test docker client is installed in this system
+$STELLA_API require "docker" "docker" "SYSTEM"
 
 
 __local_bindfs_volume_create() {

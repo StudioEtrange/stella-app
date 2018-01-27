@@ -7,10 +7,6 @@ STELLA_APP_PROPERTIES_FILENAME="netdata-service.properties"
 # https://github.com/firehol/netdata
 # https://github.com/titpetric/netdata
 
-# NOTE:
-#   to have only start|stop|purge|status command,
-#   start could be replaced with the combination of stop AND create
-
 DEFAULT_PORT=19999
 DEFAULT_IP="0.0.0.0"
 DEFAULT_DOCKER_IMAGE="titpetric/netdata"
@@ -19,10 +15,10 @@ DEFAULT_SERVICE_NAME="netdata-service"
 
 function usage() {
   echo "USAGE :"
-  echo "deploy netdata in a docker instance for monitoring current host"
+  echo "netdata service as a docker container for monitoring current host"
   echo "NOTE : require docker on your system"
   echo "----------------"
-  echo "o-- parametres :"
+  echo "o-- command :"
   echo "L     create [--version=<version>] [--ip=<ip>] [--port=<port>] : create & launch netdata service (must be use once before starting/stopping service)"
   echo "L     start : start netdata service"
   echo "L     stop : stop netdata service"
@@ -52,8 +48,8 @@ DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
 SERVICE_NAME=$DEFAULT_SERVICE_NAME
 
-# test docker engine is installed in this system
-$STELLA_API require "dockerd" "SYSTEM"
+# test docker client is installed in this system
+$STELLA_API require "docker" "docker" "SYSTEM"
 
 
 # https://github.com/titpetric/netdata

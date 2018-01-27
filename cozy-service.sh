@@ -27,10 +27,10 @@ DEFAULT_DOCKER_BUILD_URI="github.com/StudioEtrange/cozy-docker"
 
 function usage() {
   echo "USAGE :"
-  echo "deploy cozy in a docker instance"
+  echo "cozy service as a docker container"
   echo "NOTE : require docker on your system"
   echo "----------------"
-  echo "o-- parametres :"
+  echo "o-- command :"
   echo "L     create [--http=<port>] [--https=<port>] : create & launch cozy service (must be use once before starting/stopping service)"
   echo "L     start : start cozy service"
   echo "L     stop : stop cozy service"
@@ -59,9 +59,8 @@ SERVICE_NAME=$DEFAULT_SERVICE_NAME
 SERVICE_DATA_NAME="$SERVICE_NAME"-data
 SERVICE_DATA_ROOT=$STELLA_APP_WORK_ROOT/$SERVICE_DATA_NAME
 
-
-# test docker engine is installed in this system
-$STELLA_API require "dockerd" "docker" "SYSTEM"
+# test docker client is installed in this system
+$STELLA_API require "docker" "docker" "SYSTEM"
 
 # install all requirement
 #$STELLA_API get_features
