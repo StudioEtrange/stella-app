@@ -4,6 +4,8 @@ _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
 STELLA_APP_PROPERTIES_FILENAME="cozy-service.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
+# NOT FINISHED
+
 # https://cozy.io
 # https://docs.cozy.io/en/host/install/install-on-docker.html
 # https://docs.cozy.io/en/host/install/install-step-by-step.html
@@ -84,15 +86,15 @@ __local_bindfs_volume_create() {
   [ "$__uid" = "" ] && __uid="0"
   [ "$__gid" = "" ] && __gid="0"
 
-	docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/$__uid:@$UID/@$__gid --name "$__volume_name" 2>/dev/null
+	__log_run docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/$__uid:@$UID/@$__gid --name "$__volume_name" 2>/dev/null
 }
 
 
 __require_bindfs_docker_plugin() {
-  docker plugin inspect lebokus/bindfs 1>/dev/null 2>&1
+  __log_run docker plugin inspect lebokus/bindfs 1>/dev/null 2>&1
   if [ "$?" = "1" ]; then
     echo "** Install docker volume plugin bindfs"
-    docker plugin install lebokus/bindfs
+    __log_run docker plugin install lebokus/bindfs
   fi
 }
 
@@ -101,13 +103,13 @@ __require_bindfs_docker_plugin() {
 # https://github.com/titpetric/netdata
 if [ "$ACTION" = "create" ]; then
   # delete and stop previously stored container and volume
-  docker stop $SERVICE_NAME 2>/dev/null
-  docker rm $SERVICE_NAME 2>/dev/null
-  docker rm $SERVICE_DATA_NAME 2>/dev/null
-  docker volume rm "${SERVICE_DATA_NAME}-1" 2>/dev/null
-  docker volume rm "${SERVICE_DATA_NAME}-2" 2>/dev/null
-  docker volume rm "${SERVICE_DATA_NAME}-3" 2>/dev/null
-  docker volume rm "${SERVICE_DATA_NAME}-4" 2>/dev/null
+  __log_run docker stop $SERVICE_NAME 2>/dev/null
+  __log_run docker rm $SERVICE_NAME 2>/dev/null
+  __log_run docker rm $SERVICE_DATA_NAME 2>/dev/null
+  __log_run docker volume rm "${SERVICE_DATA_NAME}-1" 2>/dev/null
+  __log_run docker volume rm "${SERVICE_DATA_NAME}-2" 2>/dev/null
+  __log_run docker volume rm "${SERVICE_DATA_NAME}-3" 2>/dev/null
+  __log_run docker volume rm "${SERVICE_DATA_NAME}-4" 2>/dev/null
 
   # create a volume container
   # matching VOLUME ["/var/lib/couchdb", "/etc/cozy", "/usr/local/cozy", "/usr/local/var/cozy/"]
@@ -126,9 +128,9 @@ if [ "$ACTION" = "create" ]; then
   __local_bindfs_volume_create "${SERVICE_DATA_NAME}-4" "$SERVICE_DATA_ROOT/var/lib/couchdb" "102" "106"
 
   # build image
-  docker build --rm -t "$DOCKER_URI" "$DEFAULT_DOCKER_BUILD_URI"
+  __log_run docker build --rm -t "$DOCKER_URI" "$DEFAULT_DOCKER_BUILD_URI"
 
-  docker run -d \
+  __log_run docker run -d \
               -p $DEFAULT_HTTP_PORT:80 \
               -p $DEFAULT_HTTPS_PORT:443 \
               --name "$SERVICE_NAME" \
@@ -141,32 +143,32 @@ if [ "$ACTION" = "create" ]; then
 fi
 
 if [ "$ACTION" = "start" ]; then
-  docker start $SERVICE_NAME
+  __log_run docker start $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "stop" ]; then
-  docker stop $SERVICE_NAME
+  __log_run docker stop $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "status" ]; then
-  docker stats $SERVICE_NAME $SERVICE_DATA_NAME
+  __log_run docker stats $SERVICE_NAME $SERVICE_DATA_NAME
 fi
 
 if [ "$ACTION" = "shell" ]; then
-  docker exec -it $SERVICE_NAME bash
+  __log_run docker exec -it $SERVICE_NAME bash
 fi
 
 if [ "$ACTION" = "purge" ]; then
   # remove cntainers
-  docker stop $SERVICE_NAME 2>/dev/null
-  docker rm $SERVICE_NAME 2>/dev/null
+  __log_run docker stop $SERVICE_NAME 2>/dev/null
+  __log_run docker rm $SERVICE_NAME 2>/dev/null
   # remove volume
-  docker volume rm "${SERVICE_DATA_NAME}-1" 2>/dev/null
-  docker volume rm "${SERVICE_DATA_NAME}-2" 2>/dev/null
-  docker volume rm "${SERVICE_DATA_NAME}-3" 2>/dev/null
-  docker volume rm "${SERVICE_DATA_NAME}-4" 2>/dev/null
+  __log_run docker volume rm "${SERVICE_DATA_NAME}-1" 2>/dev/null
+  __log_run docker volume rm "${SERVICE_DATA_NAME}-2" 2>/dev/null
+  __log_run docker volume rm "${SERVICE_DATA_NAME}-3" 2>/dev/null
+  __log_run docker volume rm "${SERVICE_DATA_NAME}-4" 2>/dev/null
   # remove image
-  docker rmi $DOCKER_URI 2>/dev/null
+  __log_run docker rmi $DOCKER_URI 2>/dev/null
   # remove data
   rm -Rf $SERVICE_DATA_ROOT
 fi
