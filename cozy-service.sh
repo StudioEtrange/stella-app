@@ -40,6 +40,7 @@ function usage() {
   echo "o-- options :"
   echo "L     --http : cozy http port"
   echo "L     --https : cozy https port"
+  echo "L     --debug : active some debug trace"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
@@ -49,6 +50,7 @@ ACTION=											'' 			a				'create start stop status shell purge'
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Listening http port.
 HTTPS='$DEFAULT_HTTPS_PORT' 						'' 			'string'				s 			0			''		  Listening https port.
+DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
@@ -66,6 +68,11 @@ $STELLA_API require "docker" "docker" "SYSTEM"
 #$STELLA_API get_features
 #$STELLA_API feature_info shml "SHML"
 #[ ! "$SHML_TEST_FEATURE" = "0" ] && . $SHML_FEAT_INSTALL_ROOT/shml.sh
+
+__log_run() {
+	[ "$DEBUG" = "1" ] && echo "> $@"
+	$@
+}
 
 __local_bindfs_volume_create() {
 	__volume_name="$1"

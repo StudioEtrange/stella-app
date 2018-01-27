@@ -29,6 +29,7 @@ function usage() {
   echo "L     --port : netdata listening port"
   echo "L     --ip : netdata listening ip"
   echo "L     --version : netdata version"
+  echo "L     --debug : active some debug trace"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
@@ -39,6 +40,7 @@ OPTIONS="
 IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  Listening netdata ip.
 PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening netdata port.
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Netdata version (check available version on netdata website).
+DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
@@ -51,6 +53,10 @@ SERVICE_NAME=$DEFAULT_SERVICE_NAME
 # test docker client is installed in this system
 $STELLA_API require "docker" "docker" "SYSTEM"
 
+__log_run() {
+	[ "$DEBUG" = "1" ] && echo "> $@"
+	$@
+}
 
 # https://github.com/titpetric/netdata
 if [ "$ACTION" = "create" ]; then

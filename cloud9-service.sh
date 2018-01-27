@@ -36,6 +36,7 @@ function usage() {
   echo "L     --login : optional login protection"
   echo "L     --password : optional password protection"
   echo "L     --version : cloud9 image version"
+  echo "L     --debug : active some debug trace"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
@@ -44,10 +45,11 @@ ACTION=											'' 			a				'create start stop status shell purge'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Listening cloud9 http port.
-WORKSPACE='$DEFAULT_WORKSPACE' 						'' 			'string'				s 			0			''		  Mounted workspace folder into cloud9
+WORKSPACE='$DEFAULT_WORKSPACE' 						'' 			'string'				s 			0			''		  Mounted workspace folder into cloud9.
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Cloud9 image version.
-LOGIN='$DEFAULT_LOGIN' 						'' 			'string'				s 			0			''		  optional login protection
-PASSWORD='$DEFAULT_PASSWORD' 						'' 			'string'				s 			0			''		  optional password protection
+LOGIN='$DEFAULT_LOGIN' 						'' 			'string'				s 			0			''		  optional login protection.
+PASSWORD='$DEFAULT_PASSWORD' 						'' 			'string'				s 			0			''		  optional password protection.
+DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
@@ -61,6 +63,10 @@ SERVICE_DATA_NAME="vol-$SERVICE_NAME"
 # test docker client is installed in this system
 $STELLA_API require "docker" "docker" "SYSTEM"
 
+__log_run() {
+	[ "$DEBUG" = "1" ] && echo "> $@"
+	$@
+}
 
 __local_bindfs_volume_create() {
 	__volume_name="$1"
@@ -72,14 +78,14 @@ __local_bindfs_volume_create() {
   [ "$__uid" = "" ] && __uid="0"
   [ "$__gid" = "" ] && __gid="0"
 
-	docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/$__uid:@$UID/@$__gid --name "$__volume_name" 2>/dev/null
+	__log_run docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/$__uid:@$UID/@$__gid --name "$__volume_name" 2>/dev/null
 }
 
 __require_bindfs_docker_plugin() {
-  docker plugin inspect lebokus/bindfs 1>/dev/null 2>&1
+  __log_run docker plugin inspect lebokus/bindfs 1>/dev/null 2>&1
   if [ "$?" = "1" ]; then
     echo "** Install docker volume plugin bindfs"
-    docker plugin install lebokus/bindfs
+    __log_run docker plugin install lebokus/bindfs
   fi
 }
 
@@ -87,9 +93,9 @@ __require_bindfs_docker_plugin() {
 
 if [ "$ACTION" = "create" ]; then
     # delete and stop previously stored container and volume
-    docker stop $SERVICE_NAME 2>/dev/null
-    docker rm $SERVICE_NAME 2>/dev/null
-    docker volume rm "$SERVICE_DATA_NAME" 2>/dev/null
+    __log_run docker stop $SERVICE_NAME 2>/dev/null
+    __log_run docker rm $SERVICE_NAME 2>/dev/null
+    __log_run docker volume rm "$SERVICE_DATA_NAME" 2>/dev/null
 
     # create dedicated mount point through named volume with bindfs plugin
     if [ ! "$WORKSPACE" = "" ]; then
@@ -107,7 +113,7 @@ if [ "$ACTION" = "create" ]; then
     # auth is a start option of cloud9
     # for other start option see here https://github.com/c9/core
     if [ "$with_auth" = "1" ]; then
-        docker run -d \
+        __log_run docker run -d \
             -p $HTTP:8181 \
             --name "$SERVICE_NAME" \
             --volume $SERVICE_DATA_NAME:/workspace \
@@ -115,7 +121,7 @@ if [ "$ACTION" = "create" ]; then
             --auth "$LOGIN":"$PASSWORD"
     else
         # providing auth option with ":" as value, authorize exposing cloud9 to any IP without any login:password
-        docker run -d \
+        __log_run docker run -d \
             -p $HTTP:8181 \
             --name "$SERVICE_NAME" \
             --volume $SERVICE_DATA_NAME:/workspace \
@@ -126,27 +132,27 @@ if [ "$ACTION" = "create" ]; then
 fi
 
 if [ "$ACTION" = "start" ]; then
-    docker start $SERVICE_NAME
+    __log_run docker start $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "stop" ]; then
-    docker stop $SERVICE_NAME
+    __log_run docker stop $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "status" ]; then
-    docker stats $SERVICE_NAME
+    __log_run docker stats $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "shell" ]; then
-    docker exec -it $SERVICE_NAME bash
+    __log_run docker exec -it $SERVICE_NAME bash
 fi
 
 if [ "$ACTION" = "purge" ]; then
   # remove cntainers
-  docker stop $SERVICE_NAME 2>/dev/null
-  docker rm $SERVICE_NAME 2>/dev/null
+  __log_run docker stop $SERVICE_NAME 2>/dev/null
+  __log_run docker rm $SERVICE_NAME 2>/dev/null
   # remove volume
-  docker volume rm "$SERVICE_DATA_NAME" 2>/dev/null
+  __log_run docker volume rm "$SERVICE_DATA_NAME" 2>/dev/null
   # remove image
-  docker rmi $DOCKER_URI 2>/dev/null
+  __log_run docker rmi $DOCKER_URI 2>/dev/null
 fi

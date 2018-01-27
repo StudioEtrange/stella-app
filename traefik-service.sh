@@ -34,6 +34,7 @@ function usage() {
   echo "L     --httpadmin : traefik http admin port"
   echo "L     --conf : Path to a conf file (traefik.toml)"
   echo "L     --version : traefik image version"
+  echo "L     --debug : active some debug trace"
   echo "L     -- : use this with create command, allow to pass options directly to traefik daemon"
 }
 
@@ -46,6 +47,7 @@ HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Traefik http po
 HTTPADMIN='$DEFAULT_HTTP_ADMIN_PORT' 						'' 			'string'				s 			0			''		  Traefik http admin port.
 CONF='$DEFAULT_CONF' 						'' 			'string'				s 			0			''		  Configuration file (ex : /path/traefik.toml).
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Traefik image version.
+DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
@@ -59,16 +61,22 @@ SERVICE_NAME=$DEFAULT_SERVICE_NAME
 $STELLA_API require "docker" "docker" "SYSTEM"
 
 
+__log_run() {
+	[ "$DEBUG" = "1" ] && echo "> $@"
+	$@
+}
+
+
 if [ "$ACTION" = "create" ]; then
     # delete and stop previously stored container and volume
-    docker stop $SERVICE_NAME 2>/dev/null
-    docker rm $SERVICE_NAME 2>/dev/null
+    __log_run docker stop $SERVICE_NAME 2>/dev/null
+    __log_run docker rm $SERVICE_NAME 2>/dev/null
 
     # create dedicated volume to embbed conf file
     __conf_filename="$($STELLA_API get_filename_from_string "$CONF")"
     __conf_path="$($STELLA_API get_path_from_string "$CONF")"
 
-    docker run -d \
+    __log_run docker run -d \
         -p $HTTP:80 \
         -p $HTTPADMIN:8080 \
         --name "$SERVICE_NAME" \
@@ -77,25 +85,25 @@ if [ "$ACTION" = "create" ]; then
 fi
 
 if [ "$ACTION" = "start" ]; then
-    docker start $SERVICE_NAME
+    __log_run docker start $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "stop" ]; then
-    docker stop $SERVICE_NAME
+    __log_run docker stop $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "status" ]; then
-    docker stats $SERVICE_NAME
+    __log_run docker stats $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "shell" ]; then
-    docker exec -it $SERVICE_NAME sh
+    __log_run docker exec -it $SERVICE_NAME sh
 fi
 
 if [ "$ACTION" = "purge" ]; then
   # remove cntainers
-  docker stop $SERVICE_NAME 2>/dev/null
-  docker rm $SERVICE_NAME 2>/dev/null
+  __log_run docker stop $SERVICE_NAME 2>/dev/null
+  __log_run docker rm $SERVICE_NAME 2>/dev/null
   # remove image
-  docker rmi $DOCKER_URI 2>/dev/null
+  __log_run docker rmi $DOCKER_URI 2>/dev/null
 fi
