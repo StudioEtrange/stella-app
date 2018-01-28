@@ -23,7 +23,7 @@ function usage() {
   echo "NOTE : require docker on your system"
   echo "----------------"
   echo "o-- command :"
-  echo "L     create [--version=<version>] [--http=<port>] [--httpadmin=<port>] [--conf=<path>] [-- <options>] : create & launch service (must be use once before starting/stopping service)"
+  echo "L     create [--version=<version>] [--http=<port>] [--httpadmin=<port>] [--conf=<path>] [--docker] [-- <options>] : create & launch service (must be use once before starting/stopping service)"
   echo "L     start [--version=<version>] : start service"
   echo "L     stop [--version=<version>] : stop service"
   echo "L     status : give service status info"
@@ -34,8 +34,16 @@ function usage() {
   echo "L     --httpadmin : traefik http admin port"
   echo "L     --conf : Path to a conf file (traefik.toml)"
   echo "L     --version : traefik image version"
+  echo "L     --docker : will compute some default option to use docker as backend"
   echo "L     --debug : active some debug trace"
   echo "L     -- : use this with create command, allow to pass options directly to traefik daemon"
+  echo ""
+  echo "SAMPLES :"
+  echo "$0 create -- --docker --docker.watch"
+  echo "docker run -d -p 3000:2368 --label traefik.backend=blog \
+                                   --label traefik.frontend.rule=PathStrip:/blog/ \
+                                  --label traefik.port=3000 \
+                                  ghost"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
@@ -47,7 +55,8 @@ HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Traefik http po
 HTTPADMIN='$DEFAULT_HTTP_ADMIN_PORT' 						'' 			'string'				s 			0			''		  Traefik http admin port.
 CONF='$DEFAULT_CONF' 						'' 			'string'				s 			0			''		  Configuration file (ex : /path/traefik.toml).
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Traefik image version.
-DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
+DOCKER=''            ''    		''            		b     		0     		'1'           			Active some debug trace.
+DEBUG=''            'd'    		''            		b     		0     		'1'           			Will compute some default option to use docker as backend.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
@@ -76,12 +85,43 @@ if [ "$ACTION" = "create" ]; then
     __conf_filename="$($STELLA_API get_filename_from_string "$CONF")"
     __conf_path="$($STELLA_API get_path_from_string "$CONF")"
 
+    # compute info on how to connect to docker daemon
+    DOCKER_BACKEND_OPTIONS="--docker --docker.watch"
+    if [ "$DOCKER" == "1" ]; then
+
+      [ ! "$DOCKER_HOST" == "" ] && DOCKER_ENDPOINT="$DOCKER_HOST" || DOCKER_ENDPOINT="unix:///var/run/docker.sock"
+      $STELLA_API uri_parse "$DOCKER_ENDPOINT"
+
+      # Determine the endpoint to see if we have to mount the socket file
+      # NOTE : protocol http+unix:// should be considered a socket connexion, as unix://. B
+      # But it is not catched in this select-case block because uri_parse dp not work with http+unix://
+      DOCKER_SOCKET_MOUNT=""
+      case "$__stella_uri_schema" in
+        unix|"")
+            DOCKER_SOCKET_MOUNT="-v $__stella_uri_path:$__stella_uri_path"
+          ;;
+        *)
+          ;;
+      esac
+
+      DOCKER_BACKEND_OPTIONS="--docker.endpoint $DOCKER_ENDPOINT"
+      [ ! "$DOCKER_CERT_PATH" == "" ] && DOCKER_BACKEND_OPTIONS="$DOCKER_BACKEND_OPTIONS \
+                                                                --docker.tls
+                                                                --docker.tls.ca=$DOCKER_CERT_PATH/ca.pem \
+                                                                --docker.tls.cert=$DOCKER_CERT_PATH/cert.pem \
+                                                                --docker.tls.key=$DOCKER_CERT_PATH/key.pem"
+      [ ! "$DOCKER_TLS_VERIFY" == "" ] && DOCKER_BACKEND_OPTIONS="$DOCKER_BACKEND_OPTIONS  --docker.tls.insecureSkipVerify"
+
+
+    fi
+
     __log_run docker run -d \
         -p $HTTP:80 \
         -p $HTTPADMIN:8080 \
         --name "$SERVICE_NAME" \
         -v $CONF:/etc/traefik/traefik.toml \
-        $DOCKER_URI "$APPARG"
+        $DOCKER_SOCKET_MOUNT \
+        $DOCKER_URI "$DOCKER_BACKEND_OPTIONS" "$APPARG"
 fi
 
 if [ "$ACTION" = "start" ]; then
