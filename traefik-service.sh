@@ -39,7 +39,7 @@ function usage() {
   echo "L     -- : use this with create command, allow to pass options directly to traefik daemon"
   echo ""
   echo "SAMPLES :"
-  echo "$0 create -- --docker --docker.watch"
+  echo "$0 create -d --docker"
   echo "docker run -d -p 3000:2368 --label traefik.backend=blog \
                                    --label traefik.frontend.rule=PathStrip:/blog/ \
                                   --label traefik.port=3000 \
@@ -104,13 +104,13 @@ if [ "$ACTION" = "create" ]; then
           ;;
       esac
 
-      DOCKER_BACKEND_OPTIONS="--docker.endpoint $DOCKER_ENDPOINT"
+      DOCKER_BACKEND_OPTIONS="$DOCKER_BACKEND_OPTIONS --docker.endpoint $DOCKER_ENDPOINT"
       [ ! "$DOCKER_CERT_PATH" == "" ] && DOCKER_BACKEND_OPTIONS="$DOCKER_BACKEND_OPTIONS \
                                                                 --docker.tls
                                                                 --docker.tls.ca=$DOCKER_CERT_PATH/ca.pem \
                                                                 --docker.tls.cert=$DOCKER_CERT_PATH/cert.pem \
                                                                 --docker.tls.key=$DOCKER_CERT_PATH/key.pem"
-      [ ! "$DOCKER_TLS_VERIFY" == "" ] && DOCKER_BACKEND_OPTIONS="$DOCKER_BACKEND_OPTIONS  --docker.tls.insecureSkipVerify"
+      [ ! "$DOCKER_TLS_VERIFY" == "" ] && DOCKER_BACKEND_OPTIONS="$DOCKER_BACKEND_OPTIONS --docker.tls.insecureSkipVerify"
 
 
     fi
