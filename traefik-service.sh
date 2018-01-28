@@ -39,11 +39,11 @@ function usage() {
   echo "L     -- : use this with create command, allow to pass options directly to traefik daemon"
   echo ""
   echo "SAMPLES :"
+  echo "----------------"
+  echo "sample with docker backend"
+  echo "traefik route trafic from http://host:80/blog to ghost blog engine container on port 2368. Here, ghost container do not expose port outside"
   echo "$0 create -d --docker"
-  echo "docker run -d -p 3000:2368 --label traefik.backend=blog \
-                                   --label traefik.frontend.rule=PathStrip:/blog/ \
-                                  --label traefik.port=3000 \
-                                  ghost"
+  echo "docker run -d --label traefik.backend=\"blog\" --label traefik.frontend.rule=\"PathStrip:/blog\" --label traefik.port=2368 ghost"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
@@ -85,9 +85,9 @@ if [ "$ACTION" = "create" ]; then
     __conf_filename="$($STELLA_API get_filename_from_string "$CONF")"
     __conf_path="$($STELLA_API get_path_from_string "$CONF")"
 
-    # compute info on how to connect to docker daemon
-    DOCKER_BACKEND_OPTIONS="--docker --docker.watch"
+    DOCKER_BACKEND_OPTIONS=""
     if [ "$DOCKER" == "1" ]; then
+      DOCKER_BACKEND_OPTIONS="--docker --docker.watch"
 
       [ ! "$DOCKER_HOST" == "" ] && DOCKER_ENDPOINT="$DOCKER_HOST" || DOCKER_ENDPOINT="unix:///var/run/docker.sock"
       $STELLA_API uri_parse "$DOCKER_ENDPOINT"
@@ -104,7 +104,7 @@ if [ "$ACTION" = "create" ]; then
           ;;
       esac
 
-      DOCKER_BACKEND_OPTIONS="$DOCKER_BACKEND_OPTIONS --docker.endpoint $DOCKER_ENDPOINT"
+      DOCKER_BACKEND_OPTIONS="$DOCKER_BACKEND_OPTIONS --docker.endpoint=$DOCKER_ENDPOINT"
       [ ! "$DOCKER_CERT_PATH" == "" ] && DOCKER_BACKEND_OPTIONS="$DOCKER_BACKEND_OPTIONS \
                                                                 --docker.tls
                                                                 --docker.tls.ca=$DOCKER_CERT_PATH/ca.pem \
