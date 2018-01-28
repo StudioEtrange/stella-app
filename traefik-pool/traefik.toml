@@ -95,7 +95,7 @@ address = ":8080"
 ################################################################
 
 # Enable Docker configuration backend
-[docker]
+#[docker]
 
 # Docker server endpoint. Can be a tcp or a unix socket endpoint.
 #
