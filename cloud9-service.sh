@@ -64,7 +64,7 @@ SERVICE_DATA_NAME="vol-$SERVICE_NAME"
 $STELLA_API require "docker" "docker" "SYSTEM"
 
 __log_run() {
-	[ "$DEBUG" = "1" ] && echo "> $@"
+	[ "$DEBUG" = "1" ] && echo ">" $@
 	$@
 }
 
@@ -95,7 +95,7 @@ if [ "$ACTION" = "create" ]; then
     # delete and stop previously stored container and volume
     __log_run docker stop $SERVICE_NAME 2>/dev/null
     __log_run docker rm $SERVICE_NAME 2>/dev/null
-    __log_run docker volume rm "$SERVICE_DATA_NAME" 2>/dev/null
+    __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
 
     # create dedicated mount point through named volume with bindfs plugin
     if [ ! "$WORKSPACE" = "" ]; then

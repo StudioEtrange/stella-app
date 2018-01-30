@@ -72,7 +72,7 @@ $STELLA_API require "docker" "docker" "SYSTEM"
 #[ ! "$SHML_TEST_FEATURE" = "0" ] && . $SHML_FEAT_INSTALL_ROOT/shml.sh
 
 __log_run() {
-	[ "$DEBUG" = "1" ] && echo "> $@"
+	[ "$DEBUG" = "1" ] && echo ">" $@
 	$@
 }
 

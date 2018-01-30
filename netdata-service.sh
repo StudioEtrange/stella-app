@@ -54,7 +54,7 @@ SERVICE_NAME=$DEFAULT_SERVICE_NAME
 $STELLA_API require "docker" "docker" "SYSTEM"
 
 __log_run() {
-	[ "$DEBUG" = "1" ] && echo "> $@"
+	[ "$DEBUG" = "1" ] && echo ">" $@
 	$@
 }
 
