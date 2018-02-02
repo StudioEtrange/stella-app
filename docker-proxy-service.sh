@@ -38,20 +38,22 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 # docker stop ghost && docker rm ghost
 
 
+# SERVICE INFO --------------------------------------
+DEFAULT_SERVICE_NAME="docker-proxy-service"
 DEFAULT_CONSUL_URI=localhost:8500
 DEFAULT_PROXY_PORT=80
 #DEFAULT_TEMPLATE="$STELLA_APP_ROOT/docker-proxy-pool/nginx.ctmpl"
 DEFAULT_TEMPLATE=
 
-
+# DOCKER IMAGES INFO --------------------------------------
 DEFAULT_DOCKER_IMAGE_registrator="gliderlabs/registrator"
 DEFAULT_DOCKER_IMAGE_VERSION_registrator="latest"
 DEFAULT_DOCKER_IMAGE_proxy="nginx"
 DEFAULT_DOCKER_IMAGE_VERSION_proxy="alpine"
 DEFAULT_DOCKER_IMAGE_proxygen="studioetrange/docker-consul-template"
 DEFAULT_DOCKER_IMAGE_VERSION_proxygen="0.19.4"
-DEFAULT_SERVICE_NAME="docker-proxy-service"
 
+# USAGE --------------------------------------
 function usage() {
   echo "USAGE :"
   echo "Provide an auto-configured reverse proxy for deployed docker."
@@ -60,11 +62,11 @@ function usage() {
   echo "----------------"
   echo "o-- command :"
   echo "L     create <registrator|proxy> [--version=<version>] [--consul=<uri>] [--proxy=<port>] [--serviceip=<ip>] [--template=<path>] : create & launch service (must be use once before starting/stopping service)/ Proxy and Proxy-gen are created together."
-  echo "L     start <registrator|proxy|proxygen> [--version=<version>] : start service"
-  echo "L     stop <registrator|proxy|proxygen> [--version=<version>] : stop service"
+  echo "L     start <registrator|proxy|proxygen> : start service"
+  echo "L     stop <registrator|proxy|proxygen> : stop service"
   echo "L     status <registrator|proxy|proxygen> : give service status info"
   echo "L     shell <registrator|proxy|proxygen> : launch a shell inside running service"
-  echo "L     purge <registrator|proxy> : purge service"
+  echo "L     purge <registrator|proxy> [--version=<version>] : purge service"
   echo "o-- options :"
   echo "L     --consul : consul http api port"
   echo "L     --proxy : reverse proxy port"
@@ -89,6 +91,7 @@ DEBUG=''            'd'    		''            		b     		0     		'1'           		Act
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
+# FUNCTIONS --------------------------------------
 __compute_var() {
   __subservice="$1"
   if [ ! "$__subservice" = "" ]; then
@@ -132,6 +135,7 @@ if [ "$ACTION" = "create" ]; then
 
           __log_run docker run -d \
             --name=$SERVICE_NAME \
+            --restart always \
             --net=host \
             -v /var/run/docker.sock:/tmp/docker.sock \
             $DOCKER_URI \
@@ -152,6 +156,7 @@ if [ "$ACTION" = "create" ]; then
           # launch reverse proxy
           __log_run docker run -d \
             --name=$SERVICE_NAME \
+            --restart always \
             -p $PROXY:80 \
             -v $SERVICE_DATA_NAME:/etc/nginx/conf.d \
             $DOCKER_URI
@@ -164,6 +169,7 @@ if [ "$ACTION" = "create" ]; then
           [ ! "$TEMPLATE" = "" ] && _OPT="-v $TEMPLATE:/tmp/nginx.ctmpl"
           __log_run docker run -d \
             --name=$SERVICE_NAME \
+            --restart always \
             -e CONSUL_TEMPLATE_LOG=debug \
             --volumes-from ${DEFAULT_SERVICE_NAME}-proxy \
             -v /var/run/docker.sock:/tmp/docker.sock $_OPT \

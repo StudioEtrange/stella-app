@@ -116,9 +116,10 @@ if [ "$ACTION" = "create" ]; then
     fi
 
     __log_run docker run -d \
+        --name $SERVICE_NAME \
+        --restart always \
         -p $HTTP:80 \
         -p $HTTPADMIN:8080 \
-        --name "$SERVICE_NAME" \
         -v $CONF:/etc/traefik/traefik.toml \
         $DOCKER_SOCKET_MOUNT $DOCKER_CERT_MOUNT \
         $DOCKER_URI "$DOCKER_BACKEND_OPTIONS" "$APPARG"

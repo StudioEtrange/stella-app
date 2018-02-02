@@ -8,6 +8,7 @@ STELLA_APP_PROPERTIES_FILENAME="cloud9-service.properties"
 # https://hub.docker.com/r/sapk/cloud9/
 # https://github.com/sapk/dockerfiles
 
+# NOTE : cloud9 do not have restart always option, cause it is an IDE on demand, not really a service
 
 DEFAULT_HTTP_PORT=20001
 DEFAULT_WORKSPACE="$HOME"

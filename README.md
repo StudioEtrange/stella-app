@@ -2,49 +2,76 @@
 # Stella Application and Scripts
 
 
-Easy one-file scripts that could deploy/run/install/other binaries/service/libraries/other for you
+* Easy one-file scripts that could deploy/run/install/other binaries/service/libraries/other for you
 
-## Generic system
 
-These scripts should be run on any nix like system. They try to not use any root/sudo permissions,
+* These scripts should be run on any nix like system. They try to not use any root/sudo permissions,
 nor polluted the system.
 
+## Tools
 
-* xgboost-python : install xgboost in your current active python environnement
+* xgboost-python
+install xgboost in your current active python environnement
 ```
   ./xgboost-python.sh -h
 ```
 
-* lightgbm-python : install lightgbm in your current active python environnement
+* lightgbm-python
+install lightgbm in your current active python environnement
 ```
   ./lightgbm-python.sh -h
 ```
 
-* netdata-service : install netdata https://my-netdata.io/ -- NEEDS : docker
-```
-  ./netdata.sh -h
-```
-
-* cozy-service : install cozy https://cozy.io -- NEEDS : docker
-```
-  ./cozy-service.sh -h
-```
-
-* cloud9-service : install cloud9 dev env into your current host https://c9.io -- NEEDS : docker
+* cloud9-service *[NEEDS docker]*
+cloud9 is a web IDE -- https://c9.io
 ```
   ./cloud9-service.sh -h
 ```
 
-## Specific for a system
-
-These scripts are tied to specific systems, and may install items inside the system.
-
-* docker-ubuntu : install docker on ubuntu
+* docker-ubuntu
+install docker on ubuntu
+*This is an OS Specific task which manipulate the system*
 ```
   ./docker-ubuntu.sh -h
 ```
 
-* docker-rhel : install docker on red hat & centos
+* docker-rhel
+install docker on red hat & centos
+*This is an OS Specific task which manipulate the system*
 ```
   ./docker-rhel.sh -h
+```
+
+## Services
+
+* netdata-service *[NEEDS docker]*
+netadata is a real-time monitoring webapp -- https://my-netdata.io
+```
+  ./netdata.sh -h
+```
+
+* portainer-service *[NEEDS docker]*
+portainer is an online docker management -- https://portainer.io
+```
+  ./portainer-service.sh -h
+```
+
+* traefik-service *[NEEDS docker]*
+Traefik is a dynamic reverse proxy which can get configuration from different backend -- https://traefik.io/
+traefik-service have a optional autoset to use your current host docker as backend
+```
+  ./traefik-service.sh -h
+```
+
+* consul-service *[NEEDS docker]*
+Consul is a service discovery, key store and conf store -- https://www.consul.io
+consul-service can deploy a consul agent server or a consul agent client
+```
+  ./consul-service.sh -h
+```
+
+* docker-proxy-service *[NEEDS docker and consul-service]*
+docker-proxy-service act as a dynamic proxy for docker containre. It is based on consul/registrator for gather container data AND on consul-template/nginx to serve as a dynamic proxy for container
+```
+  ./docker-proxy-service -h
 ```

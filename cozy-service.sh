@@ -4,7 +4,7 @@ _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
 STELLA_APP_PROPERTIES_FILENAME="cozy-service.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
-# NOT FINISHED
+# TODO WIP - NOT FINISHED
 
 # https://cozy.io
 # https://docs.cozy.io/en/host/install/install-on-docker.html
@@ -131,9 +131,10 @@ if [ "$ACTION" = "create" ]; then
   __log_run docker build --rm -t "$DOCKER_URI" "$DEFAULT_DOCKER_BUILD_URI"
 
   __log_run docker run -d \
+              --name "$SERVICE_NAME" \
+              --restart always \
               -p $DEFAULT_HTTP_PORT:80 \
               -p $DEFAULT_HTTPS_PORT:443 \
-              --name "$SERVICE_NAME" \
               --volume "${SERVICE_DATA_NAME}-1":/usr/local/var/cozy/ \
               --volume "${SERVICE_DATA_NAME}-2":/usr/local/cozy \
               --volume "${SERVICE_DATA_NAME}-3":/etc/cozy \

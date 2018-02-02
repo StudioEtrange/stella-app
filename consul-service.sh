@@ -33,11 +33,11 @@ function usage() {
   echo "----------------"
   echo "o-- command :"
   echo "L     create <client|server> <id> [--version=<version>] [--http=<port>] [--dns=<port>] [--ip=<ip>] [--datacenter=<string>] [--domainname=<string>] [--consulip=<ip>]: create & launch service (must be use once before starting/stopping service)"
-  echo "L     start <client|server> <id> [--version=<version>] : start service"
-  echo "L     stop <client|server> <id> [--version=<version>] : stop service"
+  echo "L     start <client|server> <id> : start service"
+  echo "L     stop <client|server> <id> : stop service"
   echo "L     status <client|server> <id> : give service status info"
   echo "L     shell <client|server> <id> : launch a shell inside running service"
-  echo "L     purge <client|server> <id> : purge service"
+  echo "L     purge <client|server> <id> [--version=<version>] : purge service"
   echo "o-- options :"
   echo "L     --http : consul http api port"
   echo "L     --dns : consul dns port"
@@ -98,6 +98,7 @@ if [ "$ACTION" = "create" ]; then
 
         __log_run docker run -d \
             --name $SERVICE_NAME \
+            --restart always \
             --net=host \
             -v $SERVICE_NAME:/consul/data \
             -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true}' \
@@ -109,6 +110,7 @@ if [ "$ACTION" = "create" ]; then
       client )
         __log_run docker run -d \
           --name $SERVICE_NAME \
+          --restart always \
           --net=host \
           -v $SERVICE_NAME:/consul/data \
           -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true}' \
