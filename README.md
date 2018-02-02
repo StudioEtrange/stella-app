@@ -70,6 +70,7 @@ nor polluted the system.
 * consul-service *[NEEDS docker]*
   Consul is a service discovery, key store and conf store
   https://www.consul.io
+
   `consul-service` can deploy a consul agent server or a consul agent client
 ```
   ./consul-service.sh -h
