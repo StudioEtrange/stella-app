@@ -11,34 +11,46 @@ nor polluted the system.
 ## Tools
 
 * **xgboost-python**
-  Install xgboost in your current active python environnement. Designed with `virtuelenv` or `conda` in mind.
+
+  Install xgboost in your current active python environment. Designed with `virtuelenv` or `conda` in mind.
+  
 ```
   ./xgboost-python.sh -h
 ```
 
 * **lightgbm-python**
-  Install lightgbm in your current active python environnement
+
+  Install lightgbm in your current active python environment
+
 ```
   ./lightgbm-python.sh -h
 ```
 
 * **cloud9-service** *[NEEDS docker]*
+
   cloud9 is a web IDE
   https://c9.io
+
 ```
   ./cloud9-service.sh -h
 ```
 
 * **docker-ubuntu**
+
   Install docker on ubuntu
+
   *This is an OS Specific task which manipulate the system*
+
 ```
   ./docker-ubuntu.sh -h
 ```
 
 * **docker-rhel**
+
   Install docker on red hat & centos
+
   *This is an OS Specific task which manipulate the system*
+
 ```
   ./docker-rhel.sh -h
 ```
@@ -46,28 +58,36 @@ nor polluted the system.
 ## Services
 
 * **netdata-service** *[NEEDS docker]*
+
   netadata is a real-time monitoring webapp
   https://my-netdata.io
+
 ```
   ./netdata.sh -h
 ```
 
 * **portainer-service** *[NEEDS docker]*
+
   portainer is an online docker management
   https://portainer.io
+
 ```
   ./portainer-service.sh -h
 ```
 
 * **traefik-service** *[NEEDS docker]*
+
   Traefik is a dynamic reverse proxy which can get configuration from different backend
   https://traefik.io
+
   `traefik-service` have a optional autoset to use your current host docker as backend
+
 ```
   ./traefik-service.sh -h
 ```
 
 * **consul-service** *[NEEDS docker]*
+
   Consul is a service discovery, key store and conf store
   https://www.consul.io
 
