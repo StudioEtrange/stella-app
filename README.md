@@ -10,33 +10,33 @@ nor polluted the system.
 
 ## Tools
 
-* xgboost-python
+* **xgboost-python**
   Install xgboost in your current active python environnement. Designed with `virtuelenv` or `conda` in mind.
 ```
   ./xgboost-python.sh -h
 ```
 
-* lightgbm-python
+* **lightgbm-python**
   Install lightgbm in your current active python environnement
 ```
   ./lightgbm-python.sh -h
 ```
 
-* cloud9-service *[NEEDS docker]*
+* **cloud9-service** *[NEEDS docker]*
   cloud9 is a web IDE
   https://c9.io
 ```
   ./cloud9-service.sh -h
 ```
 
-* docker-ubuntu
+* **docker-ubuntu**
   Install docker on ubuntu
   *This is an OS Specific task which manipulate the system*
 ```
   ./docker-ubuntu.sh -h
 ```
 
-* docker-rhel
+* **docker-rhel**
   Install docker on red hat & centos
   *This is an OS Specific task which manipulate the system*
 ```
@@ -45,21 +45,21 @@ nor polluted the system.
 
 ## Services
 
-* netdata-service *[NEEDS docker]*
+* **netdata-service** *[NEEDS docker]*
   netadata is a real-time monitoring webapp
   https://my-netdata.io
 ```
   ./netdata.sh -h
 ```
 
-* portainer-service *[NEEDS docker]*
+* **portainer-service** *[NEEDS docker]*
   portainer is an online docker management
   https://portainer.io
 ```
   ./portainer-service.sh -h
 ```
 
-* traefik-service *[NEEDS docker]*
+* **traefik-service** *[NEEDS docker]*
   Traefik is a dynamic reverse proxy which can get configuration from different backend
   https://traefik.io
   `traefik-service` have a optional autoset to use your current host docker as backend
@@ -67,7 +67,7 @@ nor polluted the system.
   ./traefik-service.sh -h
 ```
 
-* consul-service *[NEEDS docker]*
+* **consul-service** *[NEEDS docker]*
   Consul is a service discovery, key store and conf store
   https://www.consul.io
 
@@ -76,7 +76,8 @@ nor polluted the system.
   ./consul-service.sh -h
 ```
 
-* docker-proxy-service *[NEEDS docker and consul-service]*
+* **docker-proxy-service** *[NEEDS docker and consul-service]*
+
   `docker-proxy-service` act as a dynamic proxy for docker container.
   It is based on consul/registrator for gather container data AND on consul-template/nginx to serve as a dynamic proxy for container
 ```
