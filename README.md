@@ -72,6 +72,7 @@ nor polluted the system.
   https://www.consul.io
 
   `consul-service` can deploy a consul agent server or a consul agent client
+
 ```
   ./consul-service.sh -h
 ```
@@ -79,7 +80,9 @@ nor polluted the system.
 * **docker-proxy-service** *[NEEDS docker and consul-service]*
 
   `docker-proxy-service` act as a dynamic proxy for docker container.
+
   It is based on consul/registrator for gather container data AND on consul-template/nginx to serve as a dynamic proxy for container
+
 ```
   ./docker-proxy-service -h
 ```
