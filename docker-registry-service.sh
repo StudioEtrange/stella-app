@@ -130,7 +130,7 @@ fi
 
 if [ "$ACTION" = "shell" ]; then
   cd "$DEFAULT_COMPOSE_FILE_ROOT"
-  __log_run docker-compose $DOCKER_COMPOSE_OPT exec -it backend sh
+  __log_run docker-compose $DOCKER_COMPOSE_OPT exec backend sh
 fi
 
 
