@@ -9,7 +9,7 @@ STELLA_APP_PROPERTIES_FILENAME="docker-registry-service.properties"
 DEFAULT_SERVICE_NAME="docker-registry-service"
 DEFAULT_REGISTRY_STORAGE_PATH="$STELLA_APP_WORK_ROOT/registry-storage"
 DEFAULT_BACKEND_PORT="5000"
-DEFAULT_FRONTEND_PORT="80"
+DEFAULT_FRONTEND_PORT="8080"
 DEFAULT_REGISTRY_URI="http://${STELLA_HOST_DEFAULT_IP}:${DEFAULT_BACKEND_PORT}"
 
 
@@ -20,9 +20,8 @@ DEFAULT_COMPOSE_FILE="$DEFAULT_COMPOSE_HOME/docker-compose.yml"
 # USAGE --------------------------------------
 function usage() {
   echo "USAGE :"
-  echo "Provide an auto-configured reverse proxy for deployed docker."
-  echo "NOTE : require docker on your system"
-  echo "NOTE : It use registrator, nginx, and consul-template. It needs consul."
+  echo "Deploy a docker registry and its frontend."
+  echo "NOTE : can set a docker daemon with this registry as insecure registries."
   echo "----------------"
   echo "o-- command :"
   echo "L     create [--registrypath=<path>] [--frontport=<port>] [--backport=<port>] : create & launch service (must be use once before starting/stopping service)/ Proxy and Proxy-gen are created together."
@@ -59,6 +58,13 @@ __log_run() {
 	"$@"
 }
 
+__test_sudo() {
+	if [ $(id -u) -ne 0 ]; then
+		echo "** Please run as root or sudo"
+		exit 1
+	fi
+}
+
 __set_docker_daemon_options() {
   $STELLA_API require "jq" "jq" "STELLA_FEATURE"
 
@@ -74,6 +80,14 @@ __set_docker_daemon_options() {
   jq "$@" /etc/docker/daemon.json > "$_tmp"
   mv -f "$_tmp" /etc/docker/daemon.json && rm -f "$_tmp"
 }
+
+__get_docker_daemon_options() {
+    $STELLA_API require "jq" "jq" "STELLA_FEATURE"
+    if [ -f "/etc/docker/daemon.json" ]; then
+        jq "$@" /etc/docker/daemon.json
+    fi
+}
+
 
 # ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
 SERVICE_NAME="$DEFAULT_SERVICE_NAME"
@@ -103,6 +117,7 @@ $STELLA_API require "docker-compose" "docker-compose" "STELLA_FEATURE"
 if [ "$ACTION" = "create" ]; then
   mkdir -p "$REGISTRY_STORAGE_PATH"
   cd "$DEFAULT_COMPOSE_FILE_ROOT"
+  #__log_run docker-compose $DOCKER_COMPOSE_OPT down --volumes
   __log_run docker-compose $DOCKER_COMPOSE_OPT up -d
 fi
 
@@ -118,9 +133,9 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "purge" ]; then
-  [ "$STORAGE" = "1" ] && rm -Rf "$REGISTRY_STORAGE_PATH"
   cd "$DEFAULT_COMPOSE_FILE_ROOT"
   __log_run docker-compose $DOCKER_COMPOSE_OPT down --rmi all --volumes
+  [ "$STORAGE" = "1" ] && rm -Rf "$REGISTRY_STORAGE_PATH"
 fi
 
 if [ "$ACTION" = "status" ]; then
@@ -136,7 +151,9 @@ fi
 
 if [ "$ACTION" = "set" ]; then
   echo " ** Run this command only on a host of a docker daemon"
+  __test_sudo
   echo " ** Setting $REGISTRY_SHORT an authorizd insecure registry"
-  __set_docker_daemon_options '.insecure-registries = [ "'$REGISTRY_SHORT'" ]'
+  __set_docker_daemon_options '."insecure-registries" = [ "'$REGISTRY_SHORT'" ]'
+  __get_docker_daemon_options '."insecure-registries"'
   echo " ** Please restart docker daemon"
 fi
