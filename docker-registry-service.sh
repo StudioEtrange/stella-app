@@ -109,8 +109,13 @@ REGISTRY_PORT="$__stella_uri_port"
 [ "$REGISTRY_PORT" = "" ] && REGISTRY_PORT=$DEFAULT_BACKEND_PORT
 
 
+
 $STELLA_API require "docker" "docker" "SYSTEM"
-$STELLA_API require "docker-compose" "docker-compose" "STELLA_FEATURE"
+case $ACTION in
+  create|start|stop|purge|status|shell )
+    $STELLA_API require "docker-compose" "docker-compose" "STELLA_FEATURE"
+    ;;
+esac
 
 
 # ------------- ACTIONS -------------------------
