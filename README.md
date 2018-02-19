@@ -2,7 +2,7 @@
 # Stella Application and Scripts
 
 
-* Easy one-file scripts that could deploy/run/install/other binaries/service/libraries/other for you
+* Easy one-file scripts that could deploy/run/install/other binaries/service/libraries/tools/other for you
 
 
 * These scripts should be run on any nix like system. They try to not use any root/sudo permissions,
@@ -13,7 +13,7 @@ nor polluted the system.
 * **xgboost-python**
 
   Install xgboost in your current active python environment. Designed with `virtuelenv` or `conda` in mind.
-  
+
 ```
   ./xgboost-python.sh -h
 ```
@@ -26,13 +26,13 @@ nor polluted the system.
   ./lightgbm-python.sh -h
 ```
 
-* **cloud9-service** *[NEEDS docker]*
+* **cloud9-tool** *[NEEDS docker]*
 
   cloud9 is a web IDE
   https://c9.io
 
 ```
-  ./cloud9-service.sh -h
+  ./cloud9-tool.sh -h
 ```
 
 * **docker-ubuntu**
@@ -85,6 +85,15 @@ nor polluted the system.
 ```
   ./traefik-service.sh -h
 ```
+
+* **docker-registry-service** *[NEEDS docker]*
+
+  Deploy a docker registry and its frontend.
+
+```
+  ./docker-registry-service.sh -h
+```
+
 
 * **consul-service** *[NEEDS docker]*
 

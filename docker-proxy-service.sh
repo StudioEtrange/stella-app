@@ -8,6 +8,7 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 
 # NOTE :
 # Use order :
+# 0 deploy consul
 # 1 deploy registrator
 # 2 deploy proxy
 # 3 deploy proxy-gen
@@ -42,6 +43,7 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 DEFAULT_SERVICE_NAME="docker-proxy-service"
 DEFAULT_CONSUL_URI=localhost:8500
 DEFAULT_PROXY_PORT=80
+DEFAULT_SERVICE_IP=$STELLA_HOST_DEFAULT_IP
 #DEFAULT_TEMPLATE="$STELLA_APP_ROOT/docker-proxy-pool/nginx.ctmpl"
 DEFAULT_TEMPLATE=
 
@@ -58,7 +60,7 @@ function usage() {
   echo "USAGE :"
   echo "Provide an auto-configured reverse proxy for deployed docker."
   echo "NOTE : require docker on your system"
-  echo "NOTE : It use registrator, nginx, and consul-template. It needs consul."
+  echo "NOTE : It use registrator, nginx, and consul-template. It needs consul. You may deploy consul with consul-service"
   echo "----------------"
   echo "o-- command :"
   echo "L     create <registrator|proxy> [--version=<version>] [--consul=<uri>] [--proxy=<port>] [--serviceip=<ip>] [--template=<path>] : create & launch service (must be use once before starting/stopping service)/ Proxy and Proxy-gen are created together."
@@ -84,8 +86,8 @@ TARGET=											'' 			a				'registrator proxy proxygen'
 OPTIONS="
 CONSUL='$DEFAULT_CONSUL_URI' 						'' 			'string'				s 			0			''		  Consul URI.
 PROXY='$DEFAULT_PROXY_PORT' 						'' 			'string'				s 			0			''		  Reverse proxy port.
-SERVICEIP='$DEFAULT_HOST_IP' 						'' 			'string'				s 			0			''		  IP on which detected services by registrator are exposed.
-VERSION='' 			'v' 			'string'				s 			0			''		  Docker image version.
+SERVICEIP='$DEFAULT_SERVICE_IP' 						'' 			'string'				s 			0			''		  IP on which detected services by registrator are exposed.
+VERSION='' 			    'v' 			'string'				s 			0			''		  Docker image version.
 TEMPLATE='$DEFAULT_TEMPLATE' 						'' 			'string'				s 			0			''		  Template file for proxy-gen (ex : /path/nginx.ctmpl).
 DEBUG=''            'd'    		''            		b     		0     		'1'           		Active some debug trace.
 "
@@ -131,6 +133,9 @@ if [ "$ACTION" = "create" ]; then
 
       registrator )
           __compute_var "$TARGET"
+          __log_run docker stop $SERVICE_NAME 2>/dev/null
+          __log_run docker rm $SERVICE_NAME 2>/dev/null
+
           $STELLA_API uri_parse "$CONSUL"
 
           __log_run docker run -d \

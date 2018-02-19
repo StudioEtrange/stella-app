@@ -15,6 +15,13 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 # docker logs consul-service-server-1
 # see http://$(docker-machine ip $DOCKER_MACHINE_NAME):8500/ui
 
+# NOTE :
+# Consul should always be run with --net=host in Docker because Consul's consensus and gossip protocols are sensitive to delays and packet loss,
+# so the extra layers involved with other networking types are usually undesirable and unnecessary.
+
+# NOTE : docker consul -bind and -client options can not be 0.0.0.0
+# CONSUL_CLIENT_INTERFACE and/or CONSUL_BIND_INTERFACE could be use to specify interface
+
 DEFAULT_HTTP_PORT=8500
 DEFAULT_DNS_PORT=8600
 DEFAULT_PROXY_PORT=80
@@ -32,7 +39,7 @@ function usage() {
   echo "NOTE : it cand provide a server consul agent or a client only consul agent"
   echo "----------------"
   echo "o-- command :"
-  echo "L     create <client|server> <id> [--version=<version>] [--http=<port>] [--dns=<port>] [--ip=<ip>] [--datacenter=<string>] [--domainname=<string>] [--consulip=<ip>]: create & launch service (must be use once before starting/stopping service)"
+  echo "L     create <client|server> <id> [--version=<version>] [--http=<port>] [--dns=<port>] [--ip=<ip>|--if=<interface>] [--datacenter=<string>] [--domainname=<string>] [--consulip=<ip>]: create & launch service (must be use once before starting/stopping service)"
   echo "L     start <client|server> <id> : start service"
   echo "L     stop <client|server> <id> : stop service"
   echo "L     status <client|server> <id> : give service status info"
@@ -42,8 +49,9 @@ function usage() {
   echo "L     --http : consul http api port"
   echo "L     --dns : consul dns port"
   echo "L     --version : consul image version"
-  echo "L     --ip : ip on which all consul agent services will listen"
-  echo "L     --consulip : ip of a consul server agent which the client will join"
+  echo "L     --ip : ip on which all consul agent services will listen (Use --if or --ip, if both used --ip is used)"
+  echo "L     --if : interface on which all consul agent services will listen (Use --if or --ip, if both used --ip is used)"
+  echo "L     --consulip : ip of a consul server agent which the client will join (usefull only with <client>)"
   echo "L     --debug : active some debug trace"
   echo "L     --datacenter : consul datacenter name"
   echo "L     --domain : consul domain name"
@@ -59,7 +67,8 @@ ID=											'' 			s				''
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Consul http api port.
 DNS='$DEFAULT_DNS_PORT' 						'' 			'string'				s 			0			''		  Consul dns port.
-IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  IP on which all consul agent services will listen.
+IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  IP on which all consul agent services will listen. Use --if or --ip, if both used --ip is used.
+IF='' 						'' 			'string'				s 			0			''		  Interface on which all consul agent services will listen. Use --if or --ip, if both used --ip is used.
 CONSULIP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  IP of a consul server agent which the client will join.
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Consul image version.
 DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
@@ -74,6 +83,12 @@ DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
 SERVICE_NAME=$DEFAULT_SERVICE_NAME
 SERVICE_NAME=${SERVICE_NAME}-${TARGET}-${ID}
+
+if [ "$IF" = "" ]; then
+  CONSUL_AGENT_BIND_IP="${IP}"
+else
+  CONSUL_AGENT_BIND_IP="$($STELLA_API get_ip_from_interface ${IF})"
+fi
 
 # test docker client is installed in this system
 $STELLA_API require "docker" "docker" "SYSTEM"
@@ -104,7 +119,7 @@ if [ "$ACTION" = "create" ]; then
             -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true}' \
             $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
             -server -bootstrap-expect=1 -ui \
-            -bind=$IP -client=$IP $_OPT
+            -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP $_OPT
         ;;
 
       client )
@@ -115,7 +130,7 @@ if [ "$ACTION" = "create" ]; then
           -v $SERVICE_NAME:/consul/data \
           -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true}' \
           $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
-          -retry-join=$CONSULIP -bind=$IP -client=$IP
+          -retry-join=$CONSULIP -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP
         ;;
 
 

@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
-STELLA_APP_PROPERTIES_FILENAME="cloud9-service.properties"
+STELLA_APP_PROPERTIES_FILENAME="cloud9-tool.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
 # https://c9.io/
 # https://hub.docker.com/r/sapk/cloud9/
 # https://github.com/sapk/dockerfiles
+# https://github.com/StudioEtrange/dockerfiles
 
-# NOTE : cloud9 do not have restart always option, cause it is an IDE on demand, not really a service
+# NOTE : cloud9 do not use docker 'restart always' option, cause it is an IDE on demand, a tool, not really a service
 
 DEFAULT_HTTP_PORT=20001
 DEFAULT_WORKSPACE="$HOME"
@@ -17,20 +18,20 @@ DEFAULT_PASSWORD=
 
 DEFAULT_DOCKER_IMAGE="sapk/cloud9"
 DEFAULT_DOCKER_IMAGE_VERSION="alpine"
-DEFAULT_SERVICE_NAME="cloud9-service"
+DEFAULT_SERVICE_NAME="cloud9-tool"
 
 function usage() {
   echo "USAGE :"
-  echo "cloud9 servivce as a docker container on current host to get a web IDE for developement"
+  echo "cloud9 IDE as a docker container on current host to get a web IDE for developement"
   echo "NOTE : require docker on your system"
   echo "----------------"
   echo "o-- command :"
-  echo "L     create [--version=<version>] [--http=<port>] [--workspace=<path>] [--login=<string>] [--password=<string>] : create & launch service (must be use once before starting/stopping service)"
-  echo "L     start [--version=<version>] : start service"
-  echo "L     stop [--version=<version>] : stop service"
-  echo "L     status : give service status info"
-  echo "L     shell : launch a shell inside running service"
-  echo "L     purge : purge service"
+  echo "L     create [--version=<version>] [--http=<port>] [--workspace=<path>] [--login=<string>] [--password=<string>] : create & launch tool (must be use once before starting/stopping tool)"
+  echo "L     start [--version=<version>] : start tool"
+  echo "L     stop [--version=<version>] : stop tool"
+  echo "L     status : give tool status info"
+  echo "L     shell : launch a shell inside running tool"
+  echo "L     purge : purge tool"
   echo "o-- options :"
   echo "L     --http : cloud9 http port"
   echo "L     --workspace : Mounted workspace folder into cloud9. File permissions used inside that folder are yours"

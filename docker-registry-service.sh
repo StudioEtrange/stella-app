@@ -106,7 +106,6 @@ $STELLA_API uri_parse "$REGISTRY"
 REGISTRY_SHORT="$__stella_uri_address"
 REGISTRY_HOST="$__stella_uri_host"
 REGISTRY_PORT="$__stella_uri_port"
-[ "$REGISTRY_PORT" = "" ] && REGISTRY_PORT=$DEFAULT_BACKEND_PORT
 
 
 
@@ -122,7 +121,7 @@ esac
 if [ "$ACTION" = "create" ]; then
   mkdir -p "$REGISTRY_STORAGE_PATH"
   cd "$DEFAULT_COMPOSE_FILE_ROOT"
-  #__log_run docker-compose $DOCKER_COMPOSE_OPT down --volumes
+  __log_run docker-compose $DOCKER_COMPOSE_OPT down --volumes
   __log_run docker-compose $DOCKER_COMPOSE_OPT up -d
 fi
 
