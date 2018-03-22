@@ -22,7 +22,7 @@ usage() {
 	echo " L     app get-feature <all|feature schema> : install all features defined in app properties file or install a matching one"
 	echo " L     app link <app-path> [--stellaroot=<path>] : link an app to the current or a specific stella path"
 	echo " L     app vendor <app-path> [--stellaroot=<path>] : vendorize stella (current or a specific one) into an app"
-	echo " L     app deploy <[schema://]user@host:[/abs_path|?rel_path]> [--cache] [--workspace] [--hidden] [--sudo] : deploy current app version to an other target via ssh. Vagrant use: vagrant://machine-name. [--cache] : include app cache folder. [--workspace] : include app workspace folder. [--sudo] : execute deploy as sudo. [--hidden] : exclude hidden files"
+	echo " L     app deploy <[schema://]user@host:[/abs_path|?rel_path]> [--cache] [--workspace] [--hidden] [--sudo] : deploy current app version to an uri. Could be to local filesystem, to ssh or to a vagrant machine. Vagrant use: vagrant://machine-name. [--cache] : include app cache folder. [--workspace] : include app workspace folder. [--sudo] : execute deploy as sudo. [--hidden] : exclude hidden files"
 	echo " o-- feature management :"
 	echo " L     feature install <feature schema> [--depforce] [--depignore] [--buildarch=x86|x64] [--export=<path>] [--portable=<path>] : install a feature. [--depforce] will force to reinstall all dependencies. [--depignore] will ignore dependencies. schema = feature_name[#version][@arch][:binary|source][/os_restriction][\\os_exclusion]"
 	echo " L     feature remove <feature schema> : remove a feature"
@@ -33,7 +33,7 @@ usage() {
 	echo " L     stella install dep : install all features and systems requirements if any, for the current OS ($STELLA_CURRENT_OS)"
 	echo " L     stella version print : print stella version"
 	echo " L     stella search path : print current system search path"
-	echo " L     stella deploy <[sechema://]user@host:[/abs_path|?rel_path]> [--cache] [--workspace] [--sudo] : deploy current stella version to an other target via ssh. Vagrant use: vagrant://machine-name. [--cache] : include stella cache folder. [--workspace] : include stella workspace folder. [--sudo] : execute deploy as sudo."
+	echo " L     stella deploy <[schema://]user@host:[/abs_path|?rel_path]> [--cache] [--workspace] [--sudo] : deploy current stella version to an uri. Could be to local filesystem, to ssh or to a vagrant machine. Vagrant use: vagrant://machine-name. [--cache] : include stella cache folder. [--workspace] : include stella workspace folder. [--sudo] : execute deploy as sudo."
 	echo " o-- network management :"
 	echo " L     proxy on <proxy name> : active a registered proxy"
 	echo " L     proxy off now : disable proxy"
@@ -42,8 +42,8 @@ usage() {
 	echo " L     proxy tunnel <proxy name> --bridge=<user:password@host> : set a ssh tunnel from localhost to registered proxy <name> through a bridge, and set web traffic to use this tunnel as web proxy"
 	echo " o-- bootstrap management :"
 	echo " L     boot shell <uri> : launch an interactive new shell with all stella env var setted inside an <uri> (use 'local' for current host)"
-	echo " L     boot cmd <uri> -- <command> : execute a command with all stella env var setted inside an <uri> (use 'local' for current host)"
-	echo " L     boot script <uri> -- <script_path>"
+	echo " L     boot cmd <uri> -- <command> : execute a command inside an <uri> (use 'local' for current host)"
+	echo " L     boot script <uri> --script=<script_path> [-- script arg]"
 	echo " o-- system management : "
 	echo " L     sys install <package name> : install  a system package -- WARN This will affect your system"
 	echo " L     sys remove <package name> : remove a system package -- WARN This will affect your system"
@@ -82,6 +82,7 @@ CACHE=''                       	''    		''            		b     		0     		'1'     
 WORKSPACE=''                       	''    		''            		b     		0     		'1'           			Include workspace folder when deploying.
 HIDDEN=''                       	''    		''            		b     		0     		'1'           			Exclude hidden files.
 SUDO=''                       	''    		''            		b     		0     		'1'           			Execute as sudo.
+SCRIPT=''                   ''          'path'              s           0           ''                      Script path.
 "
 
 __argparse "$0" "$OPTIONS" "$PARAMETERS" "Stella" "$(usage)" "OTHERARG" "$@"
@@ -232,14 +233,32 @@ fi
 if [ "$DOMAIN" = "boot" ]; then
 	__init_stella_env
 
+	[ "$SUDO" = "1" ] && _options="SUDO"
+
 	if [ "$ACTION" = "cmd" ]; then
-		__boot_stella_cmd "$ID" "$OTHERARG"
+		if [ "$STELLA_APP_IS_STELLA" = "1" ]; then
+			__boot_stella_cmd "$ID" "$OTHERARG" "$_options"
+		else
+			__boot_app_cmd "$ID" "$OTHERARG" "$_options"
+		fi
 	fi
 	if [ "$ACTION" = "shell" ]; then
-		__boot_stella_shell "$ID"
+		if [ "$STELLA_APP_IS_STELLA" = "1" ]; then
+			__boot_stella_shell "$ID" "$_options"
+		else
+			__boot_app_shell "$ID" "$_options"
+		fi
 	fi
 	if [ "$ACTION" = "script" ]; then
-		__boot_stella_script "$ID" "$OTHERARG"
+		if [ "$SCRIPT" = "" ]; then
+			__log "ERROR" "** ERROR : please specify a script path"
+			exit 1
+		fi
+		if [ "$STELLA_APP_IS_STELLA" = "1" ]; then
+			__boot_stella_script "$ID" "$SCRIPT" "$OTHERARG" "$_options"
+		else
+			__boot_app_script "$ID" "$SCRIPT" "$OTHERARG" "$_options"
+		fi
 	fi
 fi
 

@@ -9,13 +9,59 @@ _STELLA_COMMON_INCLUDED_=1
 
 # VARIOUS-----------------------------
 
+# Try to sudo - if not exec without sudo
+# On some systems, sudo do not exist, and we may already exec cmd as root
+#		sample : __sudo_exec apt-get update
+__sudo_exec() {
+	type sudo &>/dev/null && \
+		sudo -E "$@" || \
+		"$@"
+}
+
+
+# Share sudo authentification between ssh sessions until __sudo_ssh_end_session is called
+__sudo_ssh_begin_session() {
+	local _uri="$1"
+	__ssh_execute "$_uri" "sudo -v; echo 'Defaults !tty_tickets' | sudo tee /etc/sudoers.d/rsync_temp_hack_stella" "SHARED"
+}
+
+__sudo_ssh_end_session() {
+	local _uri="$1"
+	__ssh_execute "$_uri" "rm -v /etc/sudoers.d/rsync_temp_hack_stella" "SHARED SUDO"
+}
+
+# NOTE : keep sudo authentification alive until __sudo_end_session is called
+# 				https://stackoverflow.com/a/30547074
+# 				https://serverfault.com/a/833888
+# NOTE : trap signal
+# 			 SIGKILL and SIGSTOP cannot be trapped
+#				 ERR and EXIT are pseudo-signals
+# https://www.ibm.com/developerworks/aix/library/au-usingtraps/
+# https://linuxconfig.org/how-to-modify-scripts-behavior-on-signals-using-bash-traps
+# NOTE as it catch it catch exit signal
+#				could have side effect when bootstrapping an env
+__sudo_begin_session() {
+    sudo -v || exit $?
+    ( while true; do sudo -nv; sleep 50; done; ) &
+    STELLA_SUDO_PID="$!"
+    trap '__sudo_end_session; exit' SIGABRT SIGHUP SIGINT SIGQUIT SIGTERM ERR EXIT
+}
+__sudo_end_session() {
+		echo "** Ending sudo session $STELLA_SUDO_PID"
+    kill -0 "$STELLA_SUDO_PID"
+    trap - SIGABRT SIGHUP SIGINT SIGQUIT SIGTERM ERR EXIT
+    sudo -k
+}
+
+
+
+
 # option :
 # ENDING_CHAR_REVERSE
 # SEP .
 __get_last_version() {
 	local list=$1
 	local opt="$2"
-
 
 	echo $(__sort_version "$list" "$opt DESC") | cut -d' ' -f 1
 }
@@ -236,11 +282,59 @@ __url_encode_2() {
 
 # https://gist.github.com/cdown/1163649
 __url_decode() {
-
     local url_encoded="${1//+/ }"
     printf '%b' "${url_encoded//%/\\x}"
 }
 
+
+# Build path part of an uri
+# ./foo ==> /?foo
+# ../foo ==> /?../foo
+# /foo ==> /foo
+__uri_build_path() {
+	local __path="$1"
+
+	if [ "$(__is_abs "$__path")" = "FALSE" ]; then
+		echo "/?${__path}"
+	else
+		echo "${__path}"
+	fi
+}
+
+# __uri_get_path ssh://host/?foo ==> ./foo
+# __uri_get_path local://../foo  ==> ../foo
+# __uri_get_path local://?../foo  ==> ../foo
+#	__uri_get_path local:///?foo	==> ./foo
+# __uri_get_path ssh://host/foo  ==> /foo
+# __uri_get_path local:///foo  ==> /foo
+# __uri_get_path ssh://host ==> .
+__uri_get_path() {
+	local _uri="$@"
+	local __path
+
+	__uri_parse "$_uri"
+
+	# we may have use absolute path or relative path.
+	# if relative path is used, it is specify with local://../foo OR local://?../foo
+	#	in case local://../foo form __stella_uri_host will contain the ".."
+	if [ ! "${__stella_uri_query:1}" = "" ]; then
+		# we use explicit relative path with local://?../foo
+		__path="${__stella_uri_query:1}"
+	else
+		# we use relative path with local://../foo OR we use absolute path with local:///foo/bar
+		[ "$__stella_uri_schema" = "local" ] && __path="${__stella_uri_host}${__stella_uri_path}"
+		# we use absolute path with other protocol (ssh://host/foo)
+		[ ! "$__stella_uri_schema" = "local" ] && __path="${__stella_uri_path}"
+	fi
+
+	[ "$__path" = "" ] && __path="."
+
+	if [ "$(__is_abs "$__path")" = "FALSE" ]; then
+		[ ! "${__path::1}" = "." ] && __path="./$__path"
+	fi
+
+	echo "$__path"
+}
 
 # http://wp.vpalos.com/537/uri-parsing-using-bash-built-in-features/ (customized)
 # https://tools.ietf.org/html/rfc3986
@@ -314,10 +408,12 @@ __uri_parse() {
 	return 0
 }
 
-# [user@][host][:port][/abs_path|?rel_path]
+# [schema://][user@][host][:port][/abs_path|?rel_path]
 # By default
 # CACHE, WORKSPACE, ENV, GIT are excluded ==> use theses options to force include
 # APP, WIN are included ==> uses these option to force exclude
+# SUDO use sudo on the target
+# FOLDER_CONTENT use this option to transfer content of stella folder only (not stella folder itself)
 __transfer_stella() {
 	local _uri="$1"
 	local _OPT="$2"
@@ -335,6 +431,8 @@ __transfer_stella() {
 	_opt_ex_app=
 	local _opt_sudo
 	_opt_sudo=
+	local _opt_folder_content
+	_opt_folder_content=
 
 	for o in $_OPT; do
 		[ "$o" = "CACHE" ] && _opt_ex_cache=
@@ -344,39 +442,96 @@ __transfer_stella() {
 		[ "$o" = "WIN" ] && _opt_ex_win="EXCLUDE /win/ EXCLUDE /stella.bat EXCLUDE /conf.bat"
 		[ "$o" = "APP" ] && _opt_ex_app="EXCLUDE /app/"
 		[ "$o" = "SUDO" ] && _opt_sudo="SUDO"
+		[ "$o" = "FOLDER_CONTENT" ] && _opt_folder_content="FOLDER_CONTENT"
 	done
-
-	__transfer_folder_rsync "$STELLA_ROOT" "$_uri" "$_opt_ex_win $_opt_ex_app $_opt_ex_cache $_opt_ex_workspace $_opt_ex_env $_opt_ex_git $_opt_sudo"
+	__log "DEBUG" "** ${_opt_sudo} Transfer stella to $_uri"
+	__transfer_folder_rsync "$STELLA_ROOT" "$_uri" "$_opt_ex_win $_opt_ex_app $_opt_ex_cache $_opt_ex_workspace $_opt_ex_env $_opt_ex_git $_opt_sudo $_opt_folder_content"
 }
 
-# [schema://][user@][host][:port][/abs_path|?rel_path]
-# path could be absolute path in the target system
-# or could be relavite path to the default folder when logging with ssh
-# example
-# __transfer_folder_rsync /foo/folder user@ip
-#			here by default ssh will be used - ssh://user@ip has the same effect
+
+
+# ARG _folder folder to transfer
+# ARG _uri target
+# 	[schema://][user@][host][:port][/abs_path|?rel_path]
+#		uri path must not finish with / or only folder content will be transfered, not folder itself
+#	OPTIONS
+# 		EXCLUDE (repeat this option for each exclude filter to set - path are absolute to the root of the folder to transfert. example : /workspace/)
+# 		INCLUDE (This option override exclude rules. Repeat this option for each include filter to set - path are absolute to the root of the folder to transfert. example : /workspace/)
+# 		FOLDER_CONTENT will transfer folder content not folder itself
+# 		EXCLUDE_HIDDEN exclude hidden files
+#
+#	example
+# __transfer_folder_rsync /foo/folder ssh://user@ip
+#			here target host is 'ip'
 #			here path is empty, so folder will be sync inside home directory of user as /home/user/folder
+# __transfer_folder_rsync /foo/folder ssh://user@ip/path
+#			transfert /foo/folder to host 'ip' into absolute path '/path'
 # __transfer_folder_rsync /foo/folder vagrant://default
 #			use ssh configuration of vagrant to connect to machine named 'default'
-# __transfer_folder_rsync /foo/folder user@ip/path
-# __transfer_folder_rsync /foo/folder #../path
 __transfer_folder_rsync() {
 	local _folder="$1"
 	local _uri="$2"
+	local _opt="$3"
+	__transfer_rsync "FOLDER" "$_folder" "$_uri" "$_opt"
+}
 
-	# EXCLUDE (repeat this option for each exclude filter to set - path are absolute to the root of the folder to transfert. example : /workspace/)
-	# INCLUDE (This option override exclude rules. Repeat this option for each include filter to set - path are absolute to the root of the folder to transfert. example : /workspace/)
-	# FOLDER_CONTENT will transfer only folder content not folder itself
-	# SUDO use sudo on the target host
-	# EXCLUDE_HIDDEN use this option to exclude hidden files
-	local _OPT="$3"
+
+# ARG _file file to transfer
+# ARG _uri target
+# 		[schema://][user@][host][:port][/abs_path|?rel_path]
+#			if uri path end with a "/" it will be a destination folder, else it will be the name of the transfered file
+#	OPTIONS
+#			SUDO use sudo while transfering to uri
+#
+# example
+# __transfer_file_rsync /foo/file1 ssh://user@ip/?folder/file2
+#			file1 will be sync inside home directory of user as /home/user/folder/file2
+__transfer_file_rsync() {
+	local _file="$1"
+	local _uri="$2"
+	local _opt="$3"
+
+	__log "DEBUG" "** Transfer file $_file to $_uri"
+	__transfer_rsync "FILE" "$_file" "$_uri" "$_opt"
+}
+
+
+# ARG mode FOLDER|FILE
+# ARG source
+# ARG uri
+#			[schema://][user@][host][:port][/abs_path|?rel_path]
+# 		path could be absolute path in the target system
+# 		or could be relavite path to a default folder
+# 		default schema is local
+#			available schemas
+#					ssh://user@host:port[/abs_path|?rel_path]
+#					vagrant://vagrant-machine[/abs_path|?rel_path]
+#					local://[/abs_path|[?]rel_path]  ==> with local:// char '?' is optionnal to use relative_path
+#
+#	NOTE : use ssh shared connection by default
+#
+#	OPTIONS
+# 		EXCLUDE (repeat this option for each exclude filter to set - path are absolute to the root of the folder to transfert. example : /workspace/)
+# 		INCLUDE (This option override exclude rules. Repeat this option for each include filter to set - path are absolute to the root of the folder to transfert. example : /workspace/)
+# 		FOLDER_CONTENT will transfer folder content not folder itself
+# 		EXCLUDE_HIDDEN exclude hidden files
+#			SUDO use sudo while transfering to uri
+#			COPY_LINKS copy real file linked by a symlink
+__transfer_rsync() {
+	local _mode="$1"
+	local _source="$2"
+	local _uri="$3"
+	local _OPT="$4"
+
+
 	local _flag_exclude=OFF
 	local _exclude=
 	local _flag_include=OFF
 	local _include=
 	local _opt_folder_content=OFF
 	local _opt_sudo=OFF
-	local _opt_exclude_hidden=
+	local _opt_exclude_hidden=OFF
+	local _opt_copy_links=OFF
 	for o in $_OPT; do
 		[ "$_flag_exclude" = "ON" ] && _exclude="$o $_exclude" && _flag_exclude=OFF
 		[ "$o" = "EXCLUDE" ] && _flag_exclude=ON
@@ -385,24 +540,19 @@ __transfer_folder_rsync() {
 		[ "$o" = "FOLDER_CONTENT" ] && _opt_folder_content=ON
 		[ "$o" = "EXCLUDE_HIDDEN" ] && _opt_exclude_hidden=ON
 		[ "$o" = "SUDO" ] && _opt_sudo=ON
+		[ "$o" = "COPY_LINKS" ] && _opt_copy_links=ON
 	done
 
-	# NOTE : rsync needs to be present on both host (source, target)
+	# NOTE : rsync needs to be present on both host (source AND target)
 	__require "rsync" "rsync"
 
 	__uri_parse "$_uri"
+
+	[ "$__stella_uri_schema" = "" ] && __stella_uri_schema=local
 
 	local _local_filesystem="OFF"
 	if [ "$__stella_uri_schema" = "local" ]; then
 		_local_filesystem="ON"
-	else
-		if [ "$__stella_uri_host" = "" ]; then
-			_local_filesystem="ON"
-			__stella_uri_schema="local"
-		else
-			# default schema is ssh when host is not emplty
-			[ "$__stella_uri_schema" = "" ] && __stella_uri_schema="ssh"
-		fi
 	fi
 
 	if [ "$__stella_uri_schema" = "ssh" ]; then
@@ -419,173 +569,100 @@ __transfer_folder_rsync() {
 
 
 	local _target=
-	if [ "$_local_filesystem" = "ON" ]; then
-		# we use explicit relative path with "?"
-		if [ ! "${__stella_uri_query:1}" = "" ]; then
-			_target="${__stella_uri_query:1}"
-		else
-			# we may have use absolute path or relative path.
-			# if relative path is used, __stella_uri_host will contain the "." or ".."
-			_target="${__stella_uri_host}${__stella_uri_path}"
-		fi
-	fi
+	local _target_path=
 
+
+	if [ "$_local_filesystem" = "ON" ]; then
+		_target="$(__uri_get_path "$_uri")"
+		_target_path="$_target"
+	fi
 
 	if [ "$_local_filesystem" = "OFF" ]; then
-		# we use relative path
-		if [ ! "${__stella_uri_query:1}" = "" ]; then
-			_target="${__stella_uri_query:1}"
-		else
-			# we use absolute path
-			_target="${__stella_uri_path}"
-		fi
+		_target="$(__uri_get_path "$_uri")"
+		_target_path="$_target"
+		_target_address="$__stella_uri_host"
+		[ ! "$__stella_uri_user" = "" ] && _target_address="$__stella_uri_user"@"$_target_address"
 
-		_target="$__stella_uri_host":"$_target"
-		[ ! "$__stella_uri_user" = "" ] && _target="$__stella_uri_user"@"$_target"
+		_target="$_target_address":"$_target"
 	fi
-
 
 	local _base_folder=
-	# $_folder must not finish with / or only folder content will be transfered, not folder itself
-	if [ "$_opt_folder_content" = "ON" ]; then
-		_folder="$_folder/"
-	else
-		_folder="${_folder%/}"
-		_base_folder="/$(basename $_folder)/"
-	fi
-
 	local _opt_include=
-	for o in $_include; do
-		_opt_include="--include "$(echo "$_base_folder$o" | sed 's,//,/,')" $_opt_include"
-	done
-
 	local _opt_exclude=
-	for o in $_exclude; do
-		_opt_exclude="--exclude "$(echo "$_base_folder$o" | sed 's,//,/,')" $_opt_exclude"
-	done
-	[ "$_opt_exclude_hidden" = "ON" ] && _opt_exclude="$_opt_exclude --exclude ${_base_folder}.*"
+	local _opt_links=
+	[ "$_opt_copy_links" = "ON" ] && _opt_links="--copy-links"
 
+	case $_mode in
+		FOLDER )
+				# _source must not finish with / or only folder content will be transfered, not folder itself
+				if [ "$_opt_folder_content" = "ON" ]; then
+					_source="$_source/"
+				else
+					_source="${_source%/}"
+					_base_folder="/$(basename $_source)/"
+				fi
 
+				for o in $_include; do
+					_opt_include="--include=$(echo $_base_folder$o | sed 's,//,/,') $_opt_include"
+				done
+
+				for o in $_exclude; do
+					_opt_exclude="--exclude=$(echo $_base_folder$o | sed 's,//,/,') $_opt_exclude"
+				done
+				[ "$_opt_exclude_hidden" = "ON" ] && _opt_exclude="$_opt_exclude --exclude=${_base_folder}.*"
+
+			;;
+		FILE )
+			;;
+	esac
+
+	# NOTE : rsync do not create parent folders of the target. It creates only last level
+	#				solution ; http://www.schwertly.com/2013/07/forcing-rsync-to-create-a-remote-path-using-rsync-path/
+	# NOTE : rxync progress option https://serverfault.com/questions/219013/showing-total-progress-in-rsync-is-it-possible
+	#				--info=progress2 --no-inc-recursive is not portable because it needs a minimum version of rsync
+	# NOTE : rsync + ssh + sudo
+	#				https://serverfault.com/questions/534683/rsync-over-ssh-getting-no-tty-present
+	#				https://superuser.com/questions/270911/run-rsync-with-root-permission-on-remote-machine
 	case $__stella_uri_schema in
 		ssh )
-			[ "$_opt_sudo" = "ON" ] && rsync $_opt_include $_opt_exclude --rsync-path="sudo rsync" --force --delete -avz -e "ssh -p $_ssh_port" "$_folder" "$_target"
-			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_include $_opt_exclude --force --delete -avz -e "ssh -p $_ssh_port" "$_folder" "$_target"
+			if [ "$_opt_sudo" = "ON" ]; then
+				rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="stty raw -echo; sudo mkdir -p '$_target_path'; sudo rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh -t -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60 -p $_ssh_port" "$_source" "$_target"
+			fi
+			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="mkdir -p '$(dirname $_target_path)' && rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60 -p $_ssh_port" "$_source" "$_target"
 			;;
 		vagrant )
-			[ "$_opt_sudo" = "ON" ] && rsync $_opt_include $_opt_exclude --rsync-path="sudo rsync" --force --delete -avz -e "ssh $__vagrant_ssh_opt" "$_folder" "$_target"
-			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_include $_opt_exclude --force --delete -avz -e "ssh $__vagrant_ssh_opt" "$_folder" "$_target"
+			if [ "$_opt_sudo" = "ON" ]; then
+				rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="stty raw -echo; sudo mkdir -p '$_target_path'; sudo rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh -t -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60 $__vagrant_ssh_opt" "$_source" "$_target"
+			fi
+			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="mkdir -p '$(dirname $_target_path)' && rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh $__vagrant_ssh_opt -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60" "$_source" "$_target"
 			;;
 		local )
-			[ "$_opt_sudo" = "ON" ] && rsync $_opt_include $_opt_exclude --rsync-path="sudo rsync" --force --delete -avz "$_folder" "$_target"
-			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_include $_opt_exclude --force --delete -avz "$_folder" "$_target"
+			if [ "$_source" = "$_target" ]; then
+				__log "INFO" " ** source $_source and target $_target are equivalent, so no transfer"
+			else
+				# '--rsync-path' option seems to not work when we are on the same host (local)
+				if [ "$_opt_sudo" = "ON" ]; then
+					sudo mkdir -p "$(dirname $_target_path)"
+					sudo rsync $_opt_links $_opt_include $_opt_exclude --force --delete -avz "$_source" "$_target"
+				fi
+				if [ "$_opt_sudo" = "OFF" ]; then
+					mkdir -p "$(dirname $_target_path)"
+					rsync $_opt_links $_opt_include $_opt_exclude --force --delete -avz "$_source" "$_target"
+				fi
+			fi
 			;;
 		*)
 			echo "** ERROR protocol unknown"
 			;;
 	esac
 
-}
-
-
-# [schema://][user@][host][:port][/abs_path|?rel_path]
-# path could be absolute path in the target system
-# or could be relavite path to the default folder when logging with ssh
-# if path end with a "/" it will be a destination folder, else it will be the name of the transfered file
-# example
-# __transfer_folder_rsync /foo/file1 user@ip:#folder/file2
-#			file1 will be sync inside home directory of user as /home/user/folder/file2
-__transfer_file_rsync() {
-	local _file="$1"
-	local _uri="$2"
-	local _OPT="$3"
-
-	local _opt_sudo=OFF
-	for o in $_OPT; do
-		[ "$o" = "SUDO" ] && _opt_sudo="ON"
-	done
-
-
-	# NOTE : rsync needs to be present on both host (source, target)
-	__require "rsync" "rsync"
-	__uri_parse "$_uri"
-
-	local _local_filesystem=OFF
-	if [ "$__stella_uri_schema" = "local" ]; then
-		_local_filesystem="ON"
-	else
-		if [ "$__stella_uri_host" = "" ]; then
-			_local_filesystem="ON"
-			__stella_uri_schema="local"
-		else
-			# default schema is ssh when host is not emplty
-			[ "$__stella_uri_schema" = "" ] && __stella_uri_schema="ssh"
-		fi
-	fi
-
-	if [ "$__stella_uri_schema" = "ssh" ]; then
-		__require "ssh" "ssh"
-		_ssh_port="22"
-		[ ! "$__stella_uri_port" = "" ] && _ssh_port="$__stella_uri_port"
-	fi
-
-	if [ "$__stella_uri_schema" = "vagrant" ]; then
-		__require "vagrant" "vagrant"
-		__vagrant_ssh_opt="$(vagrant ssh-config $__stella_uri_host | sed '/^[[:space:]]*$/d' |  awk '/^Host .*$/ { detected=1; }  { if(start) {print " -o "$1"="$2}; if(detected) start=1; }')"
-		__stella_uri_host="localhost"
-	fi
-
-
-	local _target=
-	if [ "$_local_filesystem" = "ON" ]; then
-		# we use explicit relative path with "?"
-		if [ ! "${__stella_uri_query:1}" = "" ]; then
-			_target="${__stella_uri_query:1}"
-		else
-			# we may have use absolute path or relative path.
-			# if relative path is used, __stella_uri_host will contain the "." or ".."
-			_target="${__stella_uri_host}${__stella_uri_path}"
-		fi
-	fi
-
-
-	if [ "$_local_filesystem" = "OFF" ]; then
-		# we use relative path
-		if [ ! "${__stella_uri_query:1}" = "" ]; then
-			_target="${__stella_uri_query:1}"
-		else
-			# we use absolute path
-			_target="${__stella_uri_path}"
-		fi
-
-		_target="$__stella_uri_host":"$_target"
-		[ ! "$__stella_uri_user" = "" ] && _target="$__stella_uri_user"@"$_target"
-	fi
-
-
-	case $__stella_uri_schema in
-		ssh )
-			[ "$_opt_sudo" = "ON" ] && rsync --rsync-path="sudo rsync" -avz -e "ssh -p $_ssh_port" "$_file" "$_target"
-			[ "$_opt_sudo" = "OFF" ] && rsync -avz -e "ssh -p $_ssh_port" "$_file" "$_target"
-			;;
-		vagrant )
-			[ "$_opt_sudo" = "ON" ] && rsync --rsync-path="sudo rsync" -avz -e "ssh $__vagrant_ssh_opt" "$_file" "$_target"
-			[ "$_opt_sudo" = "OFF" ] && rsync -avz -e "ssh $__vagrant_ssh_opt" "$_file" "$_target"
-			;;
-		local )
-			[ "$_opt_sudo" = "ON" ] && rsync --rsync-path="sudo rsync" -avz "$_file" "$_target"
-			[ "$_opt_sudo" = "OFF" ] && rsync -avz "$_file" "$_target"
-			;;
-		*)
-			echo "** ERROR protocol unknown"
-			;;
-	esac
 
 }
 
 
 __daemonize() {
-	local _item_path=$1
-	local _log_file=$2
+	local _item_path="$1"
+	local _log_file="$2"
 
 	if [ "$_log_file" = "" ]; then
 		nohup -- $_item_path 1>/dev/null 2>&1 &
@@ -748,9 +825,10 @@ __get_extension_from_string() {
 }
 
 
+# NOTE : alternative : [ -z "${_path##/*}" ]
 __is_abs() {
 	local _path="$1"
-	# alternative : [ -z "${_path##/*}" ]
+
 	case $_path in
 		/*)
 			echo "TRUE"
@@ -777,6 +855,32 @@ __find_folder_up() {
 	fi
 }
 
+# NOTE : paths do not have to exist
+# is path are relative, they are resolved accordingly to current path
+__is_logical_subfolder() {
+	local _root="$1"
+	local _subfolder="$2"
+
+	local _result
+
+	if [ "$_root" = "/" ]; then
+		_result="TRUE"
+	else
+		_root="$(__rel_to_abs_path "$_root")"
+		_subfolder="$(__rel_to_abs_path "$_subfolder")"
+		if [ "${_subfolder}" = "${_root}" ]; then
+			_result="FALSE"
+		else
+			if [ ! "${_subfolder##$_root/}" = "$_subfolder" ]; then
+				_result="TRUE"
+			else
+				_result="FALSE"
+			fi
+		fi
+	fi
+	echo "$_result"
+}
+
 # NOTE by default path is determined giving by the current running directory
 __rel_to_abs_path() {
 	local _rel_path="$1"
@@ -795,15 +899,15 @@ __rel_to_abs_path() {
 		case $_rel_path in
 			/*)
 				# path is already absolute
-				echo "$_rel_path"
+				result="$_rel_path"
 				;;
 			*)
-				# TODO if directory does not exist returned path is not real absolute (example : /tata/toto/../titi instead of /tata/titi)
 				# relative to a given absolute path
 				if [ -d "$_abs_root_path/$_rel_path" ]; then
-					result="$(cd "$_abs_root_path/$_rel_path" && pwd )"
+					# NOTE call to __rel_to_abs_path_alternative_3 is equivalent
+					result="$(cd "$_abs_root_path/$_rel_path" && pwd -P)"
 				else
-					# NOTE using this method if directory does not exist returned path is not real absolute (example : /tata/toto/../titi instead of /tata/titi)
+					# TODO using this method if directory does not exist returned path is not real absolute (example : /tata/toto/../titi instead of /tata/titi)
 					# TODO : we rely on pure bash version, because readlink -m option used in alternative2 do not exist on some system
 					result=$(__rel_to_abs_path_alternative_1 "$_rel_path" "$_abs_root_path")
 					#[ "$STELLA_CURRENT_PLATFORM" = "darwin" ] && result=$(__rel_to_abs_path_alternative_1 "$_rel_path" "$_abs_root_path")
@@ -815,8 +919,12 @@ __rel_to_abs_path() {
 	echo $result | tr -s '/'
 }
 
+
+
 # NOTE : http://stackoverflow.com/a/21951256
-# NOTE : pure BASH : do not use readlink or cd or pwd command BUT do not follow symlink
+# NOTE : pure BASH : do not use readlink or cd or pwd command
+# NOTE : paths do not have to exists
+# NOTE : BUT do not follow symlink
 __rel_to_abs_path_alternative_1(){
 		local _rel_path=$1
 		local _abs_root_path=$2
@@ -939,6 +1047,16 @@ __abs_to_rel_path() {
 	fi
 	echo "$result"
 
+}
+
+# NOTE use a subprocess, cd and pwd
+# NOTE resolve symlinks
+# NOTE but all paths must exist !
+__rel_to_abs_path_alternative_3() {
+	local _rel_path=$1
+	local _abs_root_path=$2
+
+	echo "$(cd "$_abs_root_path/$_rel_path" && pwd -P)"
 }
 
 # init stella environment
@@ -1089,11 +1207,11 @@ __resource() {
 		fi
 	done
 
-	[ "$_opt_revert" = "ON" ] && __log " ** Reverting resource :"
-	[ "$_opt_update" = "ON" ] && __log " ** Updating resource :"
-	[ "$_opt_delete" = "ON" ] && __log " ** Deleting resource :"
-	[ "$_opt_get" = "ON" ] && __log " ** Getting resource :"
-	[ ! "$FINAL_DESTINATION" = "" ] && __log " $NAME in $FINAL_DESTINATION" || __log " $NAME"
+	[ "$_opt_revert" = "ON" ] && __log "INFO" " ** Reverting resource :"
+	[ "$_opt_update" = "ON" ] && __log "INFO" " ** Updating resource :"
+	[ "$_opt_delete" = "ON" ] && __log "INFO" " ** Deleting resource :"
+	[ "$_opt_get" = "ON" ] && __log "INFO" " ** Getting resource :"
+	[ ! "$FINAL_DESTINATION" = "" ] && __log "INFO" " $NAME in $FINAL_DESTINATION" || __log "INFO" " $NAME"
 
 	#[ "$FORCE" ] && rm -Rf $FINAL_DESTINATION
 	if [ "$_opt_get" = "ON" ]; then
@@ -1123,34 +1241,34 @@ __resource() {
 		_FLAG=1
 		case $PROTOCOL in
 			HTTP_ZIP|FILE_ZIP)
-				[ "$_opt_revert" = "ON" ] && __log "REVERT Not supported with this protocol" && _FLAG=0
-				[ "$_opt_update" = "ON" ] && __log "UPDATE Not supported with this protocol" && _FLAG=0
+				[ "$_opt_revert" = "ON" ] && __log "INFO" "REVERT Not supported with this protocol" && _FLAG=0
+				[ "$_opt_update" = "ON" ] && __log "INFO" "UPDATE Not supported with this protocol" && _FLAG=0
 				if [ -d "$FINAL_DESTINATION" ]; then
 					if [ "$_opt_get" = "ON" ]; then
 						if [ "$_opt_merge" = "ON" ]; then
 							if [ -f "$FINAL_DESTINATION/._MERGED_$NAME" ]; then
-								__log " ** Ressource already merged"
+								__log "INFO" " ** Ressource already merged"
 								_FLAG=0
 							fi
 						fi
 						if [ "$_opt_strip" = "ON" ]; then
 							#__log " ** Ressource already stripped"
-							__log " ** Destination folder exist"
+							__log "INFO" " ** Destination folder exist"
 							#_FLAG=0
 						fi
 					fi
 				fi
 				;;
 			HTTP|FILE)
-				[ "$_opt_strip" = "ON" ] && __log "STRIP option not in use"
-				[ "$_opt_revert" = "ON" ] && __log "REVERT Not supported with this protocol" && _FLAG=0
-				[ "$_opt_update" = "ON" ] && __log "UPDATE Not supported with this protocol" && _FLAG=0
+				[ "$_opt_strip" = "ON" ] && __log "INFO" "STRIP option not in use"
+				[ "$_opt_revert" = "ON" ] && __log "INFO" "REVERT Not supported with this protocol" && _FLAG=0
+				[ "$_opt_update" = "ON" ] && __log "INFO" "UPDATE Not supported with this protocol" && _FLAG=0
 
 				if [ -d "$FINAL_DESTINATION" ]; then
 					if [ "$_opt_get" = "ON" ]; then
 						if [ "$_opt_merge" = "ON" ]; then
 							if [ -f "$FINAL_DESTINATION/._MERGED_$NAME" ]; then
-								__log " ** Ressource already merged"
+								__log "INFO" " ** Ressource already merged"
 								_FLAG=0
 							fi
 						fi
@@ -1158,16 +1276,16 @@ __resource() {
 				fi
 				;;
 			HG|GIT)
-				[ "$_opt_strip" = "ON" ] && __log "STRIP option not supported with this protocol"
-				[ "$_opt_merge" = "ON" ] && __log "MERGE option not supported with this protocol"
+				[ "$_opt_strip" = "ON" ] && __log "INFO" "STRIP option not supported with this protocol"
+				[ "$_opt_merge" = "ON" ] && __log "INFO" "MERGE option not supported with this protocol"
 				if [ -d "$FINAL_DESTINATION" ]; then
 					if [ "$_opt_get" = "ON" ]; then
-						__log " ** Ressource already exist"
+						__log "INFO" " ** Ressource already exist"
 						_FLAG=0
 					fi
 				else
-					[ "$_opt_revert" = "ON" ] && __log " ** Ressource does not exist" && _FLAG=0
-					[ "$_opt_update" = "ON" ] && __log " ** Ressource does not exist" && _FLAG=0
+					[ "$_opt_revert" = "ON" ] && __log "INFO" " ** Ressource does not exist" && _FLAG=0
+					[ "$_opt_update" = "ON" ] && __log "INFO" " ** Ressource does not exist" && _FLAG=0
 				fi
 				;;
 		esac
@@ -1209,7 +1327,7 @@ __resource() {
 				if [ "$_opt_merge" = "ON" ]; then echo 1 > "$FINAL_DESTINATION/._MERGED_$NAME"; fi
 				;;
 			*)
-				__log " ** ERROR Unknow protocol"
+				__log "INFO" " ** ERROR Unknow protocol"
 				;;
 		esac
 	fi
@@ -1233,7 +1351,7 @@ __download_uncompress() {
 	if [ "$FILE_NAME" = "_AUTO_" ]; then
 		#_AFTER_SLASH=${URL##*/}
 		FILE_NAME=$(__get_filename_from_url "$URL")
-		__log "** Guessed file name is $FILE_NAME"
+		__log "INFO" "** Guessed file name is $FILE_NAME"
 	fi
 
 	__download "$URL" "$FILE_NAME"
@@ -1283,7 +1401,7 @@ __compress() {
 			fi
 			;;
 		ZIP)
-			__log "TODO: *********** ZIP NOT IMPLEMENTED"
+			__log "DEBUG" "TODO: *********** ZIP NOT IMPLEMENTED"
 			;;
 		TAR*)
 				[ -d "$_target" ] && tar -c -v $_tar_flag -f "$_output_archive" -C "$_target/.." "$(basename $_target)"
@@ -1316,7 +1434,7 @@ __uncompress() {
 
 	mkdir -p "$UNZIP_DIR"
 
-	__log " ** Uncompress $FILE_PATH in $UNZIP_DIR"
+	__log "INFO" " ** Uncompress $FILE_PATH in $UNZIP_DIR"
 
 	cd "$UNZIP_DIR"
 
@@ -1359,7 +1477,7 @@ __uncompress() {
 				ar p "$FILE_PATH" data.tar.gz | tar xz
 			;;
 		*)
-			__log " ** ERROR : Unknown archive format"
+			__log "INFO" " ** ERROR : Unknown archive format"
 	esac
 }
 
@@ -1379,12 +1497,12 @@ __download() {
 	if [ "$FILE_NAME" = "_AUTO_" ]; then
 		#_AFTER_SLASH=${URL##*/}
 		FILE_NAME=$(__get_filename_from_url "$URL")
-		__log "** Guessed file name is $FILE_NAME"
+		__log "INFO" "** Guessed file name is $FILE_NAME"
 	fi
 
 	mkdir -p "$STELLA_APP_CACHE_DIR"
 
-	__log " ** Download $FILE_NAME from $URL into cache"
+	__log "INFO" " ** Download $FILE_NAME from $URL into cache"
 
 	#if [ "$FORCE" = "1" ]; then
 	#	rm -Rf "$STELLA_APP_CACHE_DIR/$FILE_NAME"
@@ -1408,10 +1526,10 @@ __download() {
 				fi
 			fi
 		else
-			__log " ** Already downloaded"
+			__log "INFO" " ** Already downloaded"
 		fi
 	else
-		__log " ** Already downloaded"
+		__log "INFO" " ** Already downloaded"
 	fi
 
 	local _tmp_dir
@@ -1430,11 +1548,11 @@ __download() {
 					mkdir -p "$DEST_DIR"
 				fi
 				cp "$_tmp_dir/$FILE_NAME" "$DEST_DIR/"
-				__log "** Downloaded $FILE_NAME is in $DEST_DIR"
+				__log "INFO" "** Downloaded $FILE_NAME is in $DEST_DIR"
 			fi
 		fi
 	else
-		__log "** ERROR downloading $URL"
+		__log "INFO" "** ERROR downloading $URL"
 	fi
 }
 
@@ -1556,10 +1674,18 @@ __get_key() {
 	local _exp1="/\[$_SECTION\]/,/\[.*\]/p"
 	local _exp2="/$_KEY=/{print \$2}"
 
-	if [ "$_opt_section_prefix" = "ON" ]; then
-		eval "$_SECTION"_"$_KEY"='$(sed -n -e "$_win_endline" -e "$_exp1" "$_FILE" | awk -F= "$_exp2" )'
+	if [ -f "$_FILE" ]; then
+		if [ "$_opt_section_prefix" = "ON" ]; then
+			eval "$_SECTION"_"$_KEY"='$(sed -n -e "$_win_endline" -e "$_exp1" "$_FILE" | awk -F= "$_exp2" )'
+		else
+			eval $_KEY='$(sed -n -e "$_win_endline" -e "$_exp1" "$_FILE" | awk -F= "$_exp2" )'
+		fi
 	else
-		eval $_KEY='$(sed -n -e "$_win_endline" -e "$_exp1" "$_FILE" | awk -F= "$_exp2" )'
+		if [ "$_opt_section_prefix" = "ON" ]; then
+			eval "$_SECTION"_"$_KEY"=
+		else
+			eval $_KEY=
+		fi
 	fi
 
 }
@@ -1569,7 +1695,7 @@ __del_key() {
 	local _SECTION=$2
 	local _KEY=$3
 
-	__ini_file "DEL" "$_FILE" "$_SECTION" "$_KEY"
+	[ -f "$_FILE" ] && __ini_file "DEL" "$_FILE" "$_SECTION" "$_KEY"
 }
 
 __add_key() {

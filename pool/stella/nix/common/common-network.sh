@@ -12,8 +12,8 @@ __init_proxy() {
 	if [ ! "$STELLA_PROXY_ACTIVE" = "" ]; then
 		# do not set system proxy values if we uses values from system
 		[ ! "$STELLA_PROXY_ACTIVE" = "FROM_SYSTEM" ] && __set_system_proxy_values
-		__log "STELLA Proxy : $STELLA_PROXY_SCHEMA://$STELLA_PROXY_HOST:$STELLA_PROXY_PORT"
-		__log "STELLA Proxy : bypass for $STELLA_NO_PROXY"
+		__log "INFO" "STELLA Proxy : $STELLA_PROXY_SCHEMA://$STELLA_PROXY_HOST:$STELLA_PROXY_PORT"
+		__log "INFO" "STELLA Proxy : bypass for $STELLA_NO_PROXY"
 		__proxy_override
 	fi
 }
@@ -57,7 +57,7 @@ __read_proxy_values() {
 				STELLA_HTTPS_PROXY=$STELLA_PROXY_SCHEMA://$STELLA_PROXY_USER:$STELLA_PROXY_PASS@$STELLA_PROXY_HOST:$STELLA_PROXY_PORT
 			fi
 
-			__log "STELLA Proxy : $STELLA_PROXY_ACTIVE is ACTIVE"
+			__log "INFO" "STELLA Proxy : $STELLA_PROXY_ACTIVE is ACTIVE"
 		else
 			use_system_proxy_setting="ON"
 		fi
@@ -334,14 +334,29 @@ $(command minikube "$@");
 
 # -------------------- FUNCTIONS-----------------
 # support ssh:// and vagrant://
-# http://www.cyberciti.biz/faq/linux-unix-bsd-sudo-sorry-you-must-haveattytorun/
+# OPTIONS :
+#			SHARED : create a shared ssh connection for targeted host for a few time
+#			SUDO : use sudo
+#	NOTE : sudo: sorry, you must have a tty to run sudo
+# 			 http://www.cyberciti.biz/faq/linux-unix-bsd-sudo-sorry-you-must-haveattytorun/
+#
 __ssh_execute() {
 	local __uri="$1"
 	local __cmd="$2"
+	local __opt="$3"
 
 	__require "ssh" "ssh"
 
-	__uri_parse "$_uri"
+	local __opt_shared=
+	local __opt_sudo=
+	for o in $__opt; do
+		[ "$o" = "SHARED" ] && __opt_shared="-o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60"
+		[ "$o" = "SUDO" ] && __opt_sudo="1"
+	done
+
+	__uri_parse "$__uri"
+
+	[ "$__stella_uri_schema" = "" ] && __stella_uri_schema="ssh"
 
 	if [ "$__stella_uri_schema" = "ssh" ]; then
 		__ssh_port="22"
@@ -360,11 +375,21 @@ __ssh_execute() {
 	local __ssh_user=
 	[ ! "$__stella_uri_user" = "" ] && __ssh_user="$__stella_uri_user"@
 
-	ssh -t $__ssh_opt $__vagrant_ssh_opt "$__ssh_user$__stella_uri_host" "$__cmd"
+	# https://stackoverflow.com/questions/5560442/how-to-run-two-commands-in-sudo
+	if [ "$__opt_sudo" = "1" ]; then
+		ssh -tt $__ssh_opt $__opt_shared $__vagrant_ssh_opt "$__ssh_user$__stella_uri_host" "sudo -Es eval '${__cmd}'"
+	else
+		ssh -tt $__ssh_opt $__opt_shared $__vagrant_ssh_opt "$__ssh_user$__stella_uri_host" "${__cmd}"
+	fi
+
 }
 
 
+
 # TODO : these function support only ipv4
+# TODO : give alternative to netstat et ifconfig
+#					https://unix.stackexchange.com/questions/20784/how-can-i-resolve-a-hostname-to-an-ip-address-in-a-bash-script
+#					https://unix.stackexchange.com/questions/14961/how-to-find-out-which-interface-am-i-using-for-connecting-to-the-internet
 __get_network_info() {
 	local _err=
 	type netstat &>/dev/null || _err=1
@@ -448,7 +473,7 @@ __enable_proxy() {
 __disable_proxy() {
 	__add_key "$STELLA_ENV_FILE" "STELLA_PROXY" "ACTIVE"
 
-	__log "STELLA Proxy Disabled"
+	__log "INFO" "STELLA Proxy Disabled"
 	__reset_proxy_values
 	__reset_system_proxy_values
 }
@@ -502,7 +527,7 @@ __no_proxy_for() {
 	done
 
 	if [ "$_exist" = "" ]; then
-		__log "STELLA Proxy : temp proxy bypass for $_host"
+		__log "INFO" "STELLA Proxy : temp proxy bypass for $_host"
 		[ ! "$STELLA_NO_PROXY" = "" ] && STELLA_NO_PROXY="$STELLA_NO_PROXY","$_host"
 		[ "$STELLA_NO_PROXY" = "" ] && STELLA_NO_PROXY="$_host"
 		__set_system_proxy_values
