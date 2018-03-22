@@ -5,6 +5,11 @@ STELLA_APP_PROPERTIES_FILENAME="docker-registry-service.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
 
+# NOTE
+#     'frontend' is a web UI
+#     'backend' is the docker registry
+#     frontend and backend are meant to be run on the same node
+
 # SERVICE INFO --------------------------------------
 DEFAULT_SERVICE_NAME="docker-registry-service"
 DEFAULT_REGISTRY_STORAGE_PATH="$STELLA_APP_WORK_ROOT/registry-storage"
@@ -24,16 +29,16 @@ function usage() {
   echo "NOTE : can set a docker daemon with this registry as insecure registries."
   echo "----------------"
   echo "o-- command :"
-  echo "L     create [--registrypath=<path>] [--frontport=<port>] [--backport=<port>] : create & launch service (must be use once before starting/stopping service)/ Proxy and Proxy-gen are created together."
+  echo "L     create [--registrypath=<path>] [--frontport=<port>] [--backport=<port>] : create & launch service (must be use once before starting/stopping service)."
   echo "L     start : start service"
   echo "L     stop : stop service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running backend service"
   echo "L     purge [--storage] : purge service"
-  echo "L     set [--registry=<schema://host:port>] : set local docker daemon to use this service as insecure registry. Meant to be run directly on a host of a docker daemon"
+  echo "L     set [--registry=<schema://host:port>] : set a local docker daemon to use the registry as insecure registry. Meant to set any node which runs a docker daemon"
   echo "o-- options :"
-  echo "L     --frontport : service registry frontend port"
-  echo "L     --backport : service registry backend port"
+  echo "L     --frontport : web ui frontend port"
+  echo "L     --backport : registry port"
   echo "L     --registry : uri of the backend registry to set on the local docker daemon"
   echo "L     --debug : active some debug trace"
 }
@@ -94,7 +99,8 @@ SERVICE_NAME="$DEFAULT_SERVICE_NAME"
 COMPOSE_FILE_ROOT="$DEFAULT_COMPOSE_FILE_ROOT"
 COMPOSE_FILE="$DEFAULT_COMPOSE_FILE"
 DOCKER_COMPOSE_OPT="--project-name $SERVICE_NAME"
-[ "$DEBUG" = "1" ] && DOCKER_COMPOSE_OPT="$DOCKER_COMPOSE_OPT --verbose"
+# NOTE : to much verbose
+#[ "$DEBUG" = "1" ] && DOCKER_COMPOSE_OPT="$DOCKER_COMPOSE_OPT --verbose"
 
 [ "$REGISTRYPATH" = "" ] && REGISTRY_STORAGE_PATH="$DEFAULT_REGISTRY_STORAGE_PATH" || REGISTRY_STORAGE_PATH="$REGISTRYPATH"
 export REGISTRY_STORAGE_PATH="$REGISTRY_STORAGE_PATH"
@@ -156,7 +162,7 @@ fi
 if [ "$ACTION" = "set" ]; then
   echo " ** Run this command only on a host of a docker daemon"
   __test_sudo
-  echo " ** Setting $REGISTRY_SHORT an authorizd insecure registry"
+  echo " ** Setting $REGISTRY_SHORT an authorized insecure registry"
   __set_docker_daemon_options '."insecure-registries" = [ "'$REGISTRY_SHORT'" ]'
   __get_docker_daemon_options '."insecure-registries"'
   echo " ** Please restart docker daemon"

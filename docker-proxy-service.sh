@@ -5,13 +5,16 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
 
-
 # NOTE :
 # Use order :
-# 0 deploy consul
-# 1 deploy registrator
-# 2 deploy proxy
-# 3 deploy proxy-gen
+# 0 deploy consul (from consul-service)
+# 1 deploy proxy and proxy-gen
+# 2 deploy registrator
+
+# consul & proxy (and proxy-gen) should be deployed only on ONE main node
+# registrator should be deployed on any scanned node
+
+
 
 # Example with docker-machine
 # docker-machine create test
@@ -21,7 +24,10 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 # ./docker-proxy-service.sh create registrator -d --consul=$(docker-machine ip $DOCKER_MACHINE_NAME):8500 --serviceip=$(docker-machine ip $DOCKER_MACHINE_NAME)
 # docker logs docker-proxy-service-registrator
 
+
+
 # hello world example
+# FIRST launch consul and registrator (see above)
 # ./docker-proxy-service.sh create proxy -d --proxy=80 --consul=$(docker-machine ip $DOCKER_MACHINE_NAME):8500 --template=$(pwd)/docker-proxy-pool/nginx-hello-world.ctmpl
 # docker logs docker-proxy-service-proxygen
 # docker run --name hello-world-1 -l SERVICE_NAME=hello-world -d -p 80 tutum/hello-world
@@ -29,8 +35,8 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 # see http://$DOCKER_MACHINE_NAME)
 # docker stop hello-world-1 && docker rm hello-world-1
 
-
 # redirect service example
+# FIRST launch consul and registrator (see above)
 # ./docker-proxy-service.sh create proxy -d --proxy=80 --consul=$(docker-machine ip $DOCKER_MACHINE_NAME):8500 --template=$(pwd)/docker-proxy-pool/nginx-redirect.ctmpl
 # docker run --name ghost -l SERVICE_NAME=ghost -l SERVICE_TAGS=redirect -d -P ghost
 # docker logs docker-proxy-service-proxygen
@@ -63,16 +69,18 @@ function usage() {
   echo "NOTE : It use registrator, nginx, and consul-template. It needs consul. You may deploy consul with consul-service"
   echo "----------------"
   echo "o-- command :"
-  echo "L     create <registrator|proxy> [--version=<version>] [--consul=<uri>] [--proxy=<port>] [--serviceip=<ip>] [--template=<path>] : create & launch service (must be use once before starting/stopping service)/ Proxy and Proxy-gen are created together."
+  echo "L     create <proxy> [--version=<version>] [--consul=<uri>] [--proxy=<port>] [--template=<path>] : create & launch proxy/proxygen service (must be use once before starting/stopping service). Proxy and Proxy-gen are created together."
+  echo "L     create <registrator> [--version=<version>] [--consul=<uri>] [--serviceip=<ip>|--serviceif=<interface>] : create & launch registrator service (must be use once before starting/stopping service)."
   echo "L     start <registrator|proxy|proxygen> : start service"
   echo "L     stop <registrator|proxy|proxygen> : stop service"
   echo "L     status <registrator|proxy|proxygen> : give service status info"
   echo "L     shell <registrator|proxy|proxygen> : launch a shell inside running service"
   echo "L     purge <registrator|proxy> [--version=<version>] : purge service"
   echo "o-- options :"
-  echo "L     --consul : consul http api port"
+  echo "L     --consul : consul http api uri"
   echo "L     --proxy : reverse proxy port"
-  echo "L     --serviceip : IP on which detected services by registrator are exposed"
+  echo "L     --serviceip : IP on which detected services by registrator are considered exposed. (Use serviceip OR serviceif. serviceif have priority)"
+  echo "L     --serviceif : Network Interface on which detected services by registrator are considered exposed. (Use serviceip OR serviceif. serviceif have priority)"
   echo "L     --template : path to a template file for proxy-gen (ex: nginx.ctml)"
   echo "L     --version : consul image version"
   echo "L     --debug : active some debug trace"
@@ -87,6 +95,7 @@ OPTIONS="
 CONSUL='$DEFAULT_CONSUL_URI' 						'' 			'string'				s 			0			''		  Consul URI.
 PROXY='$DEFAULT_PROXY_PORT' 						'' 			'string'				s 			0			''		  Reverse proxy port.
 SERVICEIP='$DEFAULT_SERVICE_IP' 						'' 			'string'				s 			0			''		  IP on which detected services by registrator are exposed.
+SERVICEIF='' 						'' 			'string'				s 			0			''		   Network Interface on which detected services by registrator are exposed.
 VERSION='' 			    'v' 			'string'				s 			0			''		  Docker image version.
 TEMPLATE='$DEFAULT_TEMPLATE' 						'' 			'string'				s 			0			''		  Template file for proxy-gen (ex : /path/nginx.ctmpl).
 DEBUG=''            'd'    		''            		b     		0     		'1'           		Active some debug trace.
@@ -132,11 +141,13 @@ if [ "$ACTION" = "create" ]; then
         ;;
 
       registrator )
-          __compute_var "$TARGET"
+          __compute_var "registrator"
           __log_run docker stop $SERVICE_NAME 2>/dev/null
           __log_run docker rm $SERVICE_NAME 2>/dev/null
 
           $STELLA_API uri_parse "$CONSUL"
+
+          [ ! "$SERVICEIF" = "" ] && SERVICEIP="$($STELLA_API get_ip_from_interface $SERVICEIF)"
 
           __log_run docker run -d \
             --name=$SERVICE_NAME \
@@ -158,7 +169,7 @@ if [ "$ACTION" = "create" ]; then
           __log_run docker rm $SERVICE_NAME 2>/dev/null
           __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
 
-          # launch reverse proxy
+          # launch nginx reverse proxy
           __log_run docker run -d \
             --name=$SERVICE_NAME \
             --restart always \

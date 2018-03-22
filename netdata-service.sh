@@ -27,7 +27,8 @@ function usage() {
   echo "L     shell : launch a shell inside running service"
   echo "o-- options :"
   echo "L     --port : netdata listening port"
-  echo "L     --ip : netdata listening ip"
+  echo "L     --ip : netdata listening ip (Use --ip OR --if. --if have priority)"
+  echo "L     --if : netdata listening network interface (Use --ip OR --if. --if have priority)"
   echo "L     --version : netdata version"
   echo "L     --debug : active some debug trace"
 }
@@ -38,6 +39,7 @@ ACTION=											'' 			a				'create start stop status shell purge'
 "
 OPTIONS="
 IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  Listening netdata ip.
+IF='' 						'' 			'string'				s 			0			''		  Listening netdata network interface.
 PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening netdata port.
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Netdata version (check available version on netdata website).
 DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
@@ -63,6 +65,8 @@ if [ "$ACTION" = "create" ]; then
   # delete previously stored container
   __log_run docker stop $SERVICE_NAME 2>/dev/null
   __log_run docker rm $SERVICE_NAME 2>/dev/null
+
+  [ ! "$IF" = "" ] && IP="$($STELLA_API get_ip_from_interface $IF)"
 
   __log_run docker run -d \
               --name $SERVICE_NAME \
