@@ -23,6 +23,8 @@ __sudo_exec() {
 __sudo_ssh_begin_session() {
 	local _uri="$1"
 	__ssh_execute "$_uri" "sudo -v; echo 'Defaults !tty_tickets' | sudo tee /etc/sudoers.d/rsync_temp_hack_stella" "SHARED"
+	# NOTE : needs time before modification is used by sshd
+	sleep 2
 }
 
 __sudo_ssh_end_session() {
@@ -433,6 +435,7 @@ __transfer_stella() {
 	_opt_sudo=
 	local _opt_folder_content
 	_opt_folder_content=
+	local _opt_delete_excluded=
 
 	for o in $_OPT; do
 		[ "$o" = "CACHE" ] && _opt_ex_cache=
@@ -443,9 +446,10 @@ __transfer_stella() {
 		[ "$o" = "APP" ] && _opt_ex_app="EXCLUDE /app/"
 		[ "$o" = "SUDO" ] && _opt_sudo="SUDO"
 		[ "$o" = "FOLDER_CONTENT" ] && _opt_folder_content="FOLDER_CONTENT"
+		[ "$o" = "DELETE_EXCLUDED" ] && _opt_delete_excluded="DELETE_EXCLUDED"
 	done
 	__log "DEBUG" "** ${_opt_sudo} Transfer stella to $_uri"
-	__transfer_folder_rsync "$STELLA_ROOT" "$_uri" "$_opt_ex_win $_opt_ex_app $_opt_ex_cache $_opt_ex_workspace $_opt_ex_env $_opt_ex_git $_opt_sudo $_opt_folder_content"
+	__transfer_folder_rsync "$STELLA_ROOT" "$_uri" "$_opt_delete_excluded $_opt_ex_win $_opt_ex_app $_opt_ex_cache $_opt_ex_workspace $_opt_ex_env $_opt_ex_git $_opt_sudo $_opt_folder_content"
 }
 
 
@@ -517,6 +521,7 @@ __transfer_file_rsync() {
 # 		EXCLUDE_HIDDEN exclude hidden files
 #			SUDO use sudo while transfering to uri
 #			COPY_LINKS copy real file linked by a symlink
+#			DELETE_EXCLUDED delete excluded files on the target
 __transfer_rsync() {
 	local _mode="$1"
 	local _source="$2"
@@ -532,6 +537,7 @@ __transfer_rsync() {
 	local _opt_sudo=OFF
 	local _opt_exclude_hidden=OFF
 	local _opt_copy_links=OFF
+	local _opt_delete_excluded=OFF
 	for o in $_OPT; do
 		[ "$_flag_exclude" = "ON" ] && _exclude="$o $_exclude" && _flag_exclude=OFF
 		[ "$o" = "EXCLUDE" ] && _flag_exclude=ON
@@ -541,6 +547,7 @@ __transfer_rsync() {
 		[ "$o" = "EXCLUDE_HIDDEN" ] && _opt_exclude_hidden=ON
 		[ "$o" = "SUDO" ] && _opt_sudo=ON
 		[ "$o" = "COPY_LINKS" ] && _opt_copy_links=ON
+		[ "$o" = "DELETE_EXCLUDED" ] && _opt_delete_excluded=ON
 	done
 
 	# NOTE : rsync needs to be present on both host (source AND target)
@@ -591,6 +598,7 @@ __transfer_rsync() {
 	local _opt_exclude=
 	local _opt_links=
 	[ "$_opt_copy_links" = "ON" ] && _opt_links="--copy-links"
+	[ "$_opt_delete_excluded" = "ON" ] && _opt_exclude="--delete-excluded $_opt_exclude"
 
 	case $_mode in
 		FOLDER )
@@ -626,13 +634,17 @@ __transfer_rsync() {
 	case $__stella_uri_schema in
 		ssh )
 			if [ "$_opt_sudo" = "ON" ]; then
+				__sudo_ssh_begin_session "$_uri"
 				rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="stty raw -echo; sudo mkdir -p '$_target_path'; sudo rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh -t -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60 -p $_ssh_port" "$_source" "$_target"
+				__sudo_ssh_end_session "$_uri"
 			fi
 			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="mkdir -p '$(dirname $_target_path)' && rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60 -p $_ssh_port" "$_source" "$_target"
 			;;
 		vagrant )
 			if [ "$_opt_sudo" = "ON" ]; then
+				__sudo_ssh_begin_session "$_uri"
 				rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="stty raw -echo; sudo mkdir -p '$_target_path'; sudo rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh -t -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60 $__vagrant_ssh_opt" "$_source" "$_target"
+				__sudo_ssh_end_session "$_uri"
 			fi
 			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="mkdir -p '$(dirname $_target_path)' && rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh $__vagrant_ssh_opt -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60" "$_source" "$_target"
 			;;
@@ -1513,6 +1525,7 @@ __download() {
 		if [ ! -f "$STELLA_INTERNAL_CACHE_DIR/$FILE_NAME" ]; then
 			# NOTE : curl seems to be more compatible
 			if [[ -n `which curl 2> /dev/null` ]]; then
+				# TODO : why two curl call ?
 				curl -fkSL -o "$STELLA_APP_CACHE_DIR/$FILE_NAME" "$URL" || \
 				curl -fkSL -o "$STELLA_APP_CACHE_DIR/$FILE_NAME" "$URL" || \
 				rm -f "$STELLA_APP_CACHE_DIR/$FILE_NAME"
@@ -1816,6 +1829,7 @@ __argparse(){
 	local LONG_DESCRIPTION="$5"
 	# this variable, if setted, will receive the rest of the command line not processed
 	local COMMAND_LINE_RESULT="$6"
+
 	shift 6
 
 	local COMMAND_LINE="$@"

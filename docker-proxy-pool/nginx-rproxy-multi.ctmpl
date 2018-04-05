@@ -1,0 +1,132 @@
+# template syntax : https://golang.org/pkg/text/template
+# https://github.com/hashicorp/consul-template/issues/33
+# https://github.com/hashicorp/consul-template/issues/200
+
+# NOTE
+#     Each service which have to be reverse proxy must have these label : (Where XXXX is the internal service port)
+#             SERVICE_XXXX_NAME=global_name     SERVICE_XXXX_TAG=rproxy,rproxy-subpath,myservice   or SERVICE_XXXX_TAG=rproxy,rproxy-raw,/path
+#     There is two modes
+#         rproxy-subpath : use the servicce name and the value in tag as subpath (ie : /global_name/myservice)
+#         rproxy-raw : use the tag value as subpath (ie : /path)
+
+# NOTE : we replace each ":" in ID value and each "/" and  with "_" in tag values to build an unique service ID
+
+{{range services}}
+  # Services with name {{ .Name }}
+  {{ if .Tags | contains "rproxy" }}
+    {{range $t, $s := service .Name|byTag}}
+      {{if (ne $t "rproxy")}}
+      {{if (ne $t "rproxy-subpath")}}
+      {{if (ne $t "rproxy-raw")}}
+        {{range $s}}
+          # ID service : {{ .ID }} -- Service name {{ .Name }} with tag {{$t}} will be behind the reverse proxy
+          #upstream {{ .Name }}-{{ $t }}
+          upstream {{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }} {
+            server {{ .Address }}:{{ .Port }};
+          }
+        {{end}}
+      {{end}}
+      {{end}}
+      {{end}}
+    {{end}}
+  {{end}}
+{{end}}
+
+
+
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  ''      close;
+}
+
+server {
+
+  client_max_body_size 0;
+{{range services}}
+  # Services with name {{ .Name }}
+  {{ if .Tags | contains "rproxy" }}
+    {{range $t, $s := service .Name|byTag}}
+
+      # rproxy-subpath mode : reverse proxy with subpath with service name as root
+      {{if (eq $t "rproxy-subpath")}}
+        {{range $s}}
+          {{ scratch.Set .ID "SUB" }}
+        {{end}}
+      {{end}}
+
+      # rproxy-raw mode : reverse proxy with path determined by tag value
+      {{if (eq $t "rproxy-raw")}}
+        {{range $s}}
+          {{ scratch.Set .ID "RAW" }}
+        {{end}}
+      {{end}}
+
+    {{end}}
+  {{end}}
+{{end}}
+
+{{range services}}
+  # Services with name {{ .Name }}
+  {{ if .Tags | contains "rproxy" }}
+    {{range $t, $s := service .Name|byTag}}
+
+      {{if (ne $t "rproxy")}}
+      {{if (ne $t "rproxy-raw")}}
+      {{if (ne $t "rproxy-subpath")}}
+        {{range $s}}
+
+          # rproxy-subpath mode : reverse proxy with subpath with service name as root
+          {{ if (eq (scratch.Get .ID) "SUB") }}
+            # ID service : {{ .ID }} -- Service name {{ .Name }} with tag {{$t}} will be behind the reverse proxy
+            location /{{ .Name }}/{{$t}}/ {
+              rewrite ^/{{ .Name }}/{{$t}}/(.*)$ /$1 break;
+              proxy_pass http://{{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }};
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_redirect http://{{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }}/ $scheme://$host/{{ .Name }}/{{$t}}/;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection $connection_upgrade;
+              proxy_read_timeout 20d;
+              add_header Access-Control-Allow-Origin "*";
+              client_max_body_size 0;
+              proxy_max_temp_file_size 0;
+            }
+          {{end}}
+
+          # rproxy-raw mode : reverse proxy with path determined by tag value
+          {{ if (eq (scratch.Get .ID) "RAW") }}
+            # ID service : {{ .ID }} -- Service name {{ .Name }} with tag {{$t}} will be behind the reverse proxy
+            location {{$t}} {
+              rewrite ^{{$t}}/(.*)$ /$1 break;
+              proxy_pass http://{{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }};
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_redirect http://{{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }}/ $scheme://$host{{$t}}/;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection $connection_upgrade;
+              proxy_read_timeout 20d;
+              add_header Access-Control-Allow-Origin "*";
+              client_max_body_size 0;
+              proxy_max_temp_file_size 0;
+            }
+          {{end}}
+        {{end}}
+      {{end}}
+      {{end}}
+      {{end}}
+
+    {{end}}
+  {{end}}
+{{end}}
+
+
+
+
+
+
+
+}

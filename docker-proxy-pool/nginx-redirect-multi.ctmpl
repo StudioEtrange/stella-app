@@ -1,18 +1,25 @@
-# template syntax : https://golang.org/pkg/text/template/
+# template syntax : https://golang.org/pkg/text/template
 # https://github.com/hashicorp/consul-template/issues/33
 # https://github.com/hashicorp/consul-template/issues/200
 
 map $uri $redirect_uri {
+
 {{range services}}
-  {{range $tag, $services := service .Name|byTag}}
-    {{if (eq $tag "redirect")}}
-      {{$service_name := (index $services 0).Name}}
-      {{range $services}}
-        ~^/{{ .Name }}(.*) http://{{ .Address }}:{{ .Port }}$1;
+  # Services with name {{ .Name }}
+  {{ if .Tags | contains "redirect" }}
+    {{range $t, $s := service .Name|byTag}}
+      {{if (ne $t "redirect")}}
+        {{range $s}}
+          # ID service {{ .ID }} with tag {{$t}} for service name {{ .Name }} is redirected
+          ~^/{{ .Name }}/{{$t}}(.*) http://{{ .Address }}:{{ .Port }}$1;
+        {{end}}
       {{end}}
     {{end}}
   {{end}}
 {{end}}
+
+
+
 }
 
 

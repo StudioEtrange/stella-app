@@ -16,9 +16,14 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 
 
 
-# Example with docker-machine
+# -------- FULL SAMPLES with docker-machine --------
+# ./stella-link.sh feature install docker
+# ./stella-link.sh feature install docker-machine
+# ./stella-link.sh boot shell local
 # docker-machine create test
 # eval $(docker-machine env test)
+
+# create base services :
 # ./consul-service.sh create server 1 -d --http=8500 --ip=$(docker-machine ip $DOCKER_MACHINE_NAME)
 # docker logs consul-service-server-1
 # ./docker-proxy-service.sh create registrator -d --consul=$(docker-machine ip $DOCKER_MACHINE_NAME):8500 --serviceip=$(docker-machine ip $DOCKER_MACHINE_NAME)
@@ -26,24 +31,55 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 
 
 
-# hello world example
+# EXAMPLE : hello world
 # FIRST launch consul and registrator (see above)
 # ./docker-proxy-service.sh create proxy -d --proxy=80 --consul=$(docker-machine ip $DOCKER_MACHINE_NAME):8500 --template=$(pwd)/docker-proxy-pool/nginx-hello-world.ctmpl
 # docker logs docker-proxy-service-proxygen
 # docker run --name hello-world-1 -l SERVICE_NAME=hello-world -d -p 80 tutum/hello-world
+# see generated conf :
 # docker run -it --volumes-from docker-proxy-service-proxy busybox more /etc/nginx/conf.d/default.conf
 # see http://$DOCKER_MACHINE_NAME)
+# see nginx proxy logs
+# docker logs docker-proxy-service-proxy
 # docker stop hello-world-1 && docker rm hello-world-1
 
-# redirect service example
-# FIRST launch consul and registrator (see above)
+# EXAMPLE : redirect with one service
+# FIRST launch consul and registrator base services (see above)
 # ./docker-proxy-service.sh create proxy -d --proxy=80 --consul=$(docker-machine ip $DOCKER_MACHINE_NAME):8500 --template=$(pwd)/docker-proxy-pool/nginx-redirect.ctmpl
 # docker run --name ghost -l SERVICE_NAME=ghost -l SERVICE_TAGS=redirect -d -P ghost
 # docker logs docker-proxy-service-proxygen
+# see generated conf :
 # docker run -it --volumes-from docker-proxy-service-proxy busybox more /etc/nginx/conf.d/default.conf
-# see http://$DOCKER_MACHINE_NAME)/ghost
+# see http://$(docker-machine ip $DOCKER_MACHINE_NAME)/ghost
+# see nginx proxy logs
+# docker logs docker-proxy-service-proxy
 # docker stop ghost && docker rm ghost
 
+# EXAMPLE : redirect with several services into a single container
+# FIRST launch consul and registrator base services (see above)
+# ./docker-proxy-service.sh create proxy -d --proxy=80 --consul=$(docker-machine ip $DOCKER_MACHINE_NAME):8500 --template=$(pwd)/docker-proxy-pool/nginx-redirect-multi.ctmpl
+# launch image https://hub.docker.com/r/nshou/elasticsearch-kibana/ which have 2 services (5601 kibana, 9200 elasticsearch). We want to redirect the 2 services :
+# docker run --name elk -p 2000:5601 -p 2001:9200 -l SERVICE_NAME=elkmulti -l SERVICE_5601_NAME=elkmulti -l SERVICE_9200_NAME=elkmulti -l SERVICE_5601_TAGS=redirect,kibana -l SERVICE_9200_TAGS=redirect,elastic -d nshou/elasticsearch-kibana:kibana5
+# docker logs docker-proxy-service-proxygen
+# see generated conf :
+# docker run -it --volumes-from docker-proxy-service-proxy busybox more /etc/nginx/conf.d/default.conf
+# see http://$(docker-machine ip $DOCKER_MACHINE_NAME)/elkmulti/kibana and http://$(docker-machine ip $DOCKER_MACHINE_NAME)/elkmulti/elastic
+# see nginx proxy logs
+# docker logs docker-proxy-service-proxy
+# docker stop elk && docker rm elk
+
+# EXAMPLE : reverse proxy with several services into a single container
+# FIRST launch consul and registrator base services (see above)
+# ./docker-proxy-service.sh create proxy -d --proxy=80 --consul=$(docker-machine ip $DOCKER_MACHINE_NAME):8500 --template=$(pwd)/docker-proxy-pool/nginx-rproxy-multi.ctmpl
+# launch image https://hub.docker.com/r/samuelebistoletti/docker-statsd-influxdb-grafana/ which have 5 services (3003 grafana, 8083 influxdb-admin, 8086 influxdb, 8125 statsd,  22 sshd). We want to reverse proxy 3 services only (3003, 8083 and 8086).
+# docker run --name ig -p 3000:3003 -p 3001:8083 -p 3002:8086 -p 22022:22 -p 8125:8125/udp -l SERVICE_NAME=influxmulti -l SERVICE_8083_NAME=influxmulti -l SERVICE_3003_NAME=influxmulti -l SERVICE_8086_NAME=influxmulti -l SERVICE_8083_TAGS=rproxy,rproxy-subpath,admin -l SERVICE_8086_TAGS=rproxy,rproxy-subpath,influxdb -l SERVICE_3003_TAGS=rproxy,rproxy-raw,/ -d samuelebistoletti/docker-statsd-influxdb-grafana:2.0.0
+# docker logs docker-proxy-service-proxygen
+# see generated conf :
+# docker run -it --volumes-from docker-proxy-service-proxy busybox more /etc/nginx/conf.d/default.conf
+# see http://$(docker-machine ip $DOCKER_MACHINE_NAME)/influxmulti/admin and http://$(docker-machine ip $DOCKER_MACHINE_NAME)/influxmulti/influxdb and http://$(docker-machine ip $DOCKER_MACHINE_NAME)/
+# see nginx proxy logs
+# docker logs docker-proxy-service-proxy
+# docker stop ig && docker rm ig
 
 # SERVICE INFO --------------------------------------
 DEFAULT_SERVICE_NAME="docker-proxy-service"
@@ -149,14 +185,24 @@ if [ "$ACTION" = "create" ]; then
 
           [ ! "$SERVICEIF" = "" ] && SERVICEIP="$($STELLA_API get_ip_from_interface $SERVICEIF)"
 
-          __log_run docker run -d \
-            --name=$SERVICE_NAME \
-            --restart always \
-            --net=host \
-            -v /var/run/docker.sock:/tmp/docker.sock \
-            $DOCKER_URI \
-            -internal -ip=$SERVICEIP \
-            consul://$__stella_uri_address
+          if [ "$SERVICEIP" = "" ]; then
+            __log_run docker run -d \
+              --name=$SERVICE_NAME \
+              --restart always \
+              --net=host \
+              -v /var/run/docker.sock:/tmp/docker.sock \
+              $DOCKER_URI \
+              consul://$__stella_uri_address
+          else
+            __log_run docker run -d \
+              --name=$SERVICE_NAME \
+              --restart always \
+              --net=host \
+              -v /var/run/docker.sock:/tmp/docker.sock \
+              $DOCKER_URI \
+              -ip=$SERVICEIP \
+              consul://$__stella_uri_address
+          fi
         ;;
 
       proxy )
