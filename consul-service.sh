@@ -39,7 +39,7 @@ function usage() {
   echo "NOTE : it cand provide a server consul agent or a client only consul agent"
   echo "----------------"
   echo "o-- command :"
-  echo "L     create <client|server> <id> [--version=<version>] [--http=<port>] [--dns=<port>] [--ip=<ip>|--if=<interface>] [--datacenter=<string>] [--domainname=<string>] [--consulip=<ip>]: create & launch service (must be use once before starting/stopping service)"
+  echo "L     create <client|server> <id> [--version=<version>] [--http=<port>] [--dns=<port>] [--ip=<ip>|--if=<interface>] [--datacenter=<string>] [--domainname=<string>] [--consulip=<ip>] [-- additional docker run options] : create & launch service (must be use once before starting/stopping service)"
   echo "L     start <client|server> <id> : start service"
   echo "L     stop <client|server> <id> : stop service"
   echo "L     status <client|server> <id> : give service status info"
@@ -117,7 +117,7 @@ if [ "$ACTION" = "create" ]; then
             --net=host \
             -v $SERVICE_NAME:/consul/data \
             -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true}' \
-            $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
+            $APPARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
             -server -bootstrap-expect=1 -ui \
             -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP $_OPT
         ;;
@@ -129,7 +129,7 @@ if [ "$ACTION" = "create" ]; then
           --net=host \
           -v $SERVICE_NAME:/consul/data \
           -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true}' \
-          $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
+          $APPARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
           -retry-join=$CONSULIP -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP
         ;;
 

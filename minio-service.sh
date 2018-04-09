@@ -6,26 +6,28 @@ STELLA_APP_PROPERTIES_FILENAME="portainer-service.properties"
 
 
 
-DEFAULT_PORT=20000
-DEFAULT_DOCKER_IMAGE="portainer/portainer"
+DEFAULT_PORT=9000
+DEFAULT_DOCKER_IMAGE="minio/minio"
 DEFAULT_DOCKER_IMAGE_VERSION="latest"
-DEFAULT_SERVICE_NAME="portainer-service"
+DEFAULT_SERVICE_NAME="minio-service"
+DEFAULT_STORAGE_PATH="$STELLA_APP_WORK_ROOT/storage"
+
 
 function usage() {
   echo "USAGE :"
-  echo "portainer service as a docker container for managing container"
+  echo "minio service as a docker container for object storage server with S3 compatibility"
   echo "NOTE : require docker on your system"
   echo "----------------"
   echo "o-- command :"
-  echo "L     create [--version=<version>] [--port=<port>] [-- additional docker run options] : create & launch service (must be use once before starting/stopping service)"
+  echo "L     create [--accesskey=<key>] [--secretkey=<key>] [--storagepath=<path>] [--version=<version>] [--port=<port>] [-- additional docker run options] : create & launch service (must be use once before starting/stopping service)"
   echo "L     start : start service"
   echo "L     stop : stop service"
-  echo "L     purge [--version=<version>] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
+  echo "L     purge [--storage] [--version=<version>] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
   echo "o-- options :"
-  echo "L     --port : portainer listening port"
-  echo "L     --version : portainer image version"
+  echo "L     --port : minio listening port"
+  echo "L     --version : minio image version"
   echo "L     --debug : active some debug trace"
 }
 
@@ -34,9 +36,13 @@ PARAMETERS="
 ACTION=											'' 			a				'create start stop status shell purge'
 "
 OPTIONS="
+STORAGEPATH='$DEFAULT_STORAGE_PATH' 						'' 			'path'				s 			0			''		  Storage path.
 PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening port.
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  portainer image version .
 DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
+STORAGE=''            ''    		''            		b     		0     		'1'           		Delete storage path
+ACCESSKEY='' 						'' 			'key'				s 			0			''		  Storage access key.
+SECRETKEY='' 						'' 			'key'				s 			0			''		  Storage secret key.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
@@ -61,13 +67,19 @@ if [ "$ACTION" = "create" ]; then
   __log_run docker rm $SERVICE_NAME 2>/dev/null
   __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
 
+  mkdir -p "$STORAGEPATH"
+
+  _OPT=
+  [ ! "$ACCESSKEY" = "" ]  && _OPT="$_OPT -e MINIO_ACCESS_KEY=$ACCESSKEY"
+  [ ! "$SECRETKEY" = "" ]  && _OPT="$_OPT -e MINIO_SECRET_KEY=$SECRETKEY"
+
   __log_run docker run -d \
               --name $SERVICE_NAME \
               --restart always \
               -p $PORT:9000 \
-              -v /var/run/docker.sock:/var/run/docker.sock \
-              -v $SERVICE_DATA_NAME:/data \
-              $APPARG $DOCKER_URI
+              -v $STORAGEPATH:/data \
+              -v $SERVICE_DATA_NAME:/root/.minio \
+              $_OPT $APPARG $DOCKER_URI server /data
 fi
 
 if [ "$ACTION" = "purge" ]; then
@@ -75,6 +87,8 @@ if [ "$ACTION" = "purge" ]; then
   __log_run docker rm $SERVICE_NAME 2>/dev/null
   __log_run docker rmi $DOCKER_URI 2>/dev/null
   __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
+
+  [ "$STORAGE" = "1" ] && rm -Rf "$STORAGEPATH"
 fi
 
 if [ "$ACTION" = "start" ]; then

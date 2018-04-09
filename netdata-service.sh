@@ -19,7 +19,7 @@ function usage() {
   echo "NOTE : require docker on your system"
   echo "----------------"
   echo "o-- command :"
-  echo "L     create [--version=<version>] [--ip=<ip>] [--port=<port>] : create & launch service (must be use once before starting/stopping service)"
+  echo "L     create [--version=<version>] [--ip=<ip>] [--port=<port>] [-- additional docker run options] : create & launch service (must be use once before starting/stopping service)"
   echo "L     start : start service"
   echo "L     stop : stop service"
   echo "L     purge [--version=<version>] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
@@ -78,7 +78,7 @@ if [ "$ACTION" = "create" ]; then
               -e NETDATA_IP=$IP \
               --net=host \
               -v /var/run/docker.sock:/var/run/docker.sock \
-              $DOCKER_URI
+              $APPARG $DOCKER_URI
 
 fi
 

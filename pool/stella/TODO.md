@@ -296,11 +296,19 @@ https://github.com/ansible/ansible-modules-core/blob/devel/system/service.py
 * stacki
 ** https://github.com/StackIQ/stacki
 
+* terraform + packet : https://www.terraform.io/docs/providers/packet/index.html
+
+* matchbox https://github.com/coreos/matchbox
+https://coreos.com/blog/matchbox-with-terraform
+https://coreos.com/tectonic/docs/latest/install/bare-metal/metal-terraform.html
+
 ## hadoop deploy
 
 * from bare metal to hadoop : cobbler + ansible + cloudera manager
 ** https://blog.godatadriven.com/bare-metal-hadoop-provisioning-ansible-cobbler.html
 
+* structor
+  https://github.com/cartershanklin/structor (and forks)
 ## Kubernetes deploy
 
 * several contribution of kubernetes deploy techniques : https://github.com/kubernetes/kube-deploy
