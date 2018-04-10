@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
-STELLA_APP_PROPERTIES_FILENAME="portainer-service.properties"
+STELLA_APP_PROPERTIES_FILENAME="minio-service.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
+
+# SAMPLE of MINIO and REXRAY/S3FS
+# install service
+# ./minio-service create --accesskey=azerty123 --secretkey=azerty123 --storagepath=$HOME/miniostore
+
+# install docker plugin rexray/s3fs
+# docker plugin install rexray/s3fs --grant-all-permissions S3FS_OPTIONS="allow_other,use_path_request_style,nonempty,url=http://host:9000" S3FS_ENDPOINT="http://host:9000" S3FS_ACCESSKEY="azerty123" S3FS_SECRETKEY="azerty123"
+
+# create & test volume
+# docker volume create --driver rexray/s3fs testvol
+# docker run -rm -v testvol:/data bash -c 'echo "test" > /data/test.txt'
+# docker run -rm -v testvol:/data bash -c 'cat /data/test.txt'
 
 
 DEFAULT_PORT=9000
