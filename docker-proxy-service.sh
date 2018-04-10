@@ -91,9 +91,9 @@ DEFAULT_TEMPLATE=
 
 # DOCKER IMAGES INFO --------------------------------------
 DEFAULT_DOCKER_IMAGE_registrator="gliderlabs/registrator"
-DEFAULT_DOCKER_IMAGE_VERSION_registrator="latest"
+DEFAULT_DOCKER_IMAGE_VERSION_registrator="v7"
 DEFAULT_DOCKER_IMAGE_proxy="nginx"
-DEFAULT_DOCKER_IMAGE_VERSION_proxy="alpine"
+DEFAULT_DOCKER_IMAGE_VERSION_proxy="1.12.2-alpine"
 DEFAULT_DOCKER_IMAGE_proxygen="studioetrange/docker-consul-template"
 DEFAULT_DOCKER_IMAGE_VERSION_proxygen="0.19.4"
 

@@ -427,16 +427,20 @@ __yum_add_extra_repositories() {
 
 	[ ! "$_version" = "6" ] && [ ! "$_version" = "7" ] && return
 
+	# TODO : there yum repositories use a mirroring system, and it do not work every time. Beside EPEL repositories is enough
+	# TODO : remove centos-7-base.repo from pool folder
 	# http://redhat-centos.blogspot.fr/2013/06/configuring-centos-base-repo-for-redhat.html
-	__log "INFO" "** Set base repositories of Centos"
-	__sudo_exec cp -f "$STELLA_ARTEFACT/centos-repo/centos-${_version}-base.repo" /etc/yum.repos.d/
-	__get_resource "gpg key" "http://mirror.centos.org/centos/RPM-GPG-KEY-CentOS-${_version}" "HTTP" "$STELLA_APP_WORK_ROOT" "FORCE_NAME RPM-GPG-KEY-CentOS-${_version}"
-	__sudo_exec cp -f "$STELLA_APP_WORK_ROOT/RPM-GPG-KEY-CentOS-${_version}" /etc/pki/rpm-gpg/
+	#__log "INFO" "** Set base repositories of Centos"
+	#__sudo_exec cp -f "$STELLA_ARTEFACT/centos-repo/centos-${_version}-base.repo" /etc/yum.repos.d/
+	#__get_resource "gpg key" "http://mirror.centos.org/centos/RPM-GPG-KEY-CentOS-${_version}" "HTTP" "$STELLA_APP_WORK_ROOT" "FORCE_NAME RPM-GPG-KEY-CentOS-${_version}"
+	#__sudo_exec cp -f "$STELLA_APP_WORK_ROOT/RPM-GPG-KEY-CentOS-${_version}" /etc/pki/rpm-gpg/
 
 	# http://www.rackspace.com/knowledge_center/article/install-epel-and-additional-repositories-on-centos-and-red-hat
 	__log "INFO" "** Add EPEL repositories"
 	__get_resource "epel" "https://dl.fedoraproject.org/pub/epel/epel-release-latest-${_version}.noarch.rpm" "HTTP" "$STELLA_APP_WORK_ROOT" "FORCE_NAME epel-release-latest-${_version}.noarch.rpm"
 	__sudo_exec rpm -Uvh "$STELLA_APP_WORK_ROOT/epel-release-latest-${_version}.noarch.rpm"
+
+	__sudo_exec yum clean all
 }
 
 
