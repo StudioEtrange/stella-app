@@ -29,8 +29,13 @@ DEFAULT_IP=$STELLA_HOST_DEFAULT_IP
 
 
 DEFAULT_DOCKER_IMAGE="consul"
-DEFAULT_DOCKER_IMAGE_VERSION="latest"
+DEFAULT_DOCKER_IMAGE_VERSION="1.0.6"
 DEFAULT_SERVICE_NAME="consul-service"
+
+# work even if we pass an ip
+__convert_hostname_to_ip() {
+  echo "$(ping -c 1 $1 | gawk -F '[()]' '/PING/{print $2}')"
+}
 
 function usage() {
   echo "USAGE :"
@@ -86,9 +91,13 @@ SERVICE_NAME=${SERVICE_NAME}-${TARGET}-${ID}
 
 if [ "$IF" = "" ]; then
   CONSUL_AGENT_BIND_IP="${IP}"
+  CONSUL_AGENT_BIND_IP="$(__convert_hostname_to_ip $CONSUL_AGENT_BIND_IP)"
 else
   CONSUL_AGENT_BIND_IP="$($STELLA_API get_ip_from_interface ${IF})"
 fi
+
+# convert hostname to IP
+CONSULIP="$(__convert_hostname_to_ip $CONSULIP)"
 
 # test docker client is installed in this system
 $STELLA_API require "docker" "docker" "SYSTEM"
@@ -111,12 +120,13 @@ if [ "$ACTION" = "create" ]; then
         [ ! "$DATACENTER" = "" ]  && _OPT="$_OPT -datacenter=$DATACENTER"
         [ ! "$DOMAINNAME" = "" ]  && _OPT="$_OPT -domain=$DOMAINNAME"
 
+        # NOTE : , "disable_update_check": true ==> disable HTTP request to hashicorp to check critical update
         __log_run docker run -d \
             --name $SERVICE_NAME \
             --restart always \
             --net=host \
             -v $SERVICE_NAME:/consul/data \
-            -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true}' \
+            -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
             $APPARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
             -server -bootstrap-expect=1 -ui \
             -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP $_OPT
@@ -128,7 +138,7 @@ if [ "$ACTION" = "create" ]; then
           --restart always \
           --net=host \
           -v $SERVICE_NAME:/consul/data \
-          -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true}' \
+          -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true, "disable_update_check": true}' \
           $APPARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
           -retry-join=$CONSULIP -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP
         ;;

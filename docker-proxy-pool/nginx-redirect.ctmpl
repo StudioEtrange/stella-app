@@ -25,7 +25,7 @@ server {
 
   location @redirect-map {
       if ($redirect_uri) {  # redirect if the variable is defined
-          return 301 $redirect_uri;
+          return 302 $redirect_uri;
       }
   }
 }
