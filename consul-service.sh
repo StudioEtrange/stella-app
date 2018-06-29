@@ -113,6 +113,7 @@ if [ "$ACTION" = "create" ]; then
     # delete and stop previously stored container and volume
     __log_run docker stop $SERVICE_NAME 2>/dev/null
     __log_run docker rm $SERVICE_NAME 2>/dev/null
+    __log_run docker volume rm $SERVICE_NAME 2>/dev/null
 
     case $TARGET in
       server )
@@ -167,6 +168,7 @@ if [ "$ACTION" = "purge" ]; then
   # remove cntainers
   __log_run docker stop $SERVICE_NAME 2>/dev/null
   __log_run docker rm $SERVICE_NAME 2>/dev/null
+  __log_run docker volume rm $SERVICE_NAME 2>/dev/null
   # remove image
   __log_run docker rmi $DOCKER_URI 2>/dev/null
 fi
