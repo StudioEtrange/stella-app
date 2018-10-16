@@ -8,7 +8,7 @@ _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
 
 function usage() {
 	echo "USAGE :"
-  echo "deploy docker on ubuntu system"
+	echo "deploy docker on ubuntu system"
 	echo "NOTE : require to be run as root/sudo"
 	echo "----------------"
 	echo "o-- parametres :"

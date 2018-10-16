@@ -38,7 +38,7 @@ function usage() {
   echo "L     stop : stop cozy service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
-  echo "L     purge : purge service & data"
+  echo "L     destroy : destroy service & data"
   echo "o-- options :"
   echo "L     --http : cozy http port"
   echo "L     --https : cozy https port"
@@ -47,7 +47,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell purge'
+ACTION=											'' 			a				'create start stop status shell destroy'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Listening http port.
@@ -159,7 +159,7 @@ if [ "$ACTION" = "shell" ]; then
   __log_run docker exec -it $SERVICE_NAME bash
 fi
 
-if [ "$ACTION" = "purge" ]; then
+if [ "$ACTION" = "destroy" ]; then
   # remove cntainers
   __log_run docker stop $SERVICE_NAME 2>/dev/null
   __log_run docker rm $SERVICE_NAME 2>/dev/null

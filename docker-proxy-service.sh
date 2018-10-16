@@ -111,7 +111,7 @@ function usage() {
   echo "L     stop <registrator|proxy|proxygen> : stop service"
   echo "L     status <registrator|proxy|proxygen> : give service status info"
   echo "L     shell <registrator|proxy|proxygen> : launch a shell inside running service"
-  echo "L     purge <registrator|proxy> [--version=<version>] : purge service"
+  echo "L     destroy <registrator|proxy> [--version=<version>] : destroy service"
   echo "o-- options :"
   echo "L     --consul : consul http api uri"
   echo "L     --proxy : reverse proxy port"
@@ -124,7 +124,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell purge'
+ACTION=											'' 			a				'create start stop status shell destroy'
 TARGET=											'' 			a				'registrator proxy proxygen'
 "
 OPTIONS="
@@ -262,10 +262,10 @@ if [ "$ACTION" = "shell" ]; then
     __log_run docker exec -it $SERVICE_NAME sh
 fi
 
-if [ "$ACTION" = "purge" ]; then
+if [ "$ACTION" = "destroy" ]; then
   case $TARGET in
     proxygen )
-      echo "** ERROR : use proxy instead. proxy & proxygen are purged together"
+      echo "** ERROR : use proxy instead. proxy & proxygen are destroyed together"
       exit 1
     ;;
     proxy )

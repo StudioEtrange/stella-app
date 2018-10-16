@@ -24,7 +24,7 @@ function usage() {
   echo "L     create [--version=<version>] [--port=<port>] : create & launch service (must be use once before starting/stopping service)"
   echo "L     start : start service"
   echo "L     stop : stop service"
-  echo "L     purge [--version=<version>] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
+  echo "L     destroy [--version=<version>] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
   echo "o-- options :"
@@ -63,7 +63,7 @@ if [ "$ACTION" = "install" ]; then
   $STELLA_API get_features
 fi
 
-if [ "$ACTION" = "purge" ]; then
+if [ "$ACTION" = "destroy" ]; then
   __log_run docker stop $SERVICE_NAME 2>/dev/null
   __log_run docker rm $SERVICE_NAME 2>/dev/null
   __log_run docker rmi $DOCKER_URI 2>/dev/null

@@ -20,7 +20,7 @@ function usage() {
   echo "L     create [--version=<version>] [--port=<port>] [-- additional docker run options] : create & launch service (must be use once before starting/stopping service)"
   echo "L     start : start service"
   echo "L     stop : stop service"
-  echo "L     purge [--version=<version>] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
+  echo "L     destroy [--version=<version>] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
   echo "o-- options :"
@@ -31,7 +31,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell purge'
+ACTION=											'' 			a				'create start stop status shell destroy'
 "
 OPTIONS="
 PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening port.
@@ -70,7 +70,7 @@ if [ "$ACTION" = "create" ]; then
               $APPARG $DOCKER_URI
 fi
 
-if [ "$ACTION" = "purge" ]; then
+if [ "$ACTION" = "destroy" ]; then
   __log_run docker stop $SERVICE_NAME 2>/dev/null
   __log_run docker rm $SERVICE_NAME 2>/dev/null
   __log_run docker rmi $DOCKER_URI 2>/dev/null

@@ -34,7 +34,7 @@ function usage() {
   echo "L     stop : stop service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running backend service"
-  echo "L     purge [--storage] : purge service"
+  echo "L     destroy [--storage] : destroy service"
   echo "L     set [--registry=<schema://host:port>] : set a local docker daemon to use the registry as insecure registry. Meant to set any node which runs a docker daemon"
   echo "o-- options :"
   echo "L     --frontport : web ui frontend port"
@@ -45,7 +45,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell purge set'
+ACTION=											'' 			a				'create start stop status shell destroy set'
 "
 OPTIONS="
 REGISTRYPATH='$DEFAULT_REGISTRY_STORAGE_PATH' 						'' 			'path'				s 			0			''		  Storage path.
@@ -117,7 +117,7 @@ REGISTRY_PORT="$__stella_uri_port"
 
 $STELLA_API require "docker" "docker" "SYSTEM"
 case $ACTION in
-  create|start|stop|purge|status|shell )
+  create|start|stop|destroy|status|shell )
     $STELLA_API require "docker-compose" "docker-compose" "STELLA_FEATURE"
     ;;
 esac
@@ -142,7 +142,7 @@ if [ "$ACTION" = "stop" ]; then
   __log_run docker-compose $DOCKER_COMPOSE_OPT stop
 fi
 
-if [ "$ACTION" = "purge" ]; then
+if [ "$ACTION" = "destroy" ]; then
   cd "$DEFAULT_COMPOSE_FILE_ROOT"
   __log_run docker-compose $DOCKER_COMPOSE_OPT down --rmi all --volumes
   [ "$STORAGE" = "1" ] && rm -Rf "$REGISTRY_STORAGE_PATH"

@@ -29,7 +29,7 @@ function usage() {
   echo "L     stop [--version=<version>] : stop service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
-  echo "L     purge : purge service"
+  echo "L     destroy : destroy service"
   echo "o-- options :"
   echo "L     --http : traefik http reverse proxy port (entry port)"
   echo "L     --httpadmin : traefik http admin port"
@@ -49,7 +49,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell purge'
+ACTION=											'' 			a				'create start stop status shell destroy'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Traefik http port (entry port).
@@ -141,7 +141,7 @@ if [ "$ACTION" = "shell" ]; then
     __log_run docker exec -it $SERVICE_NAME sh
 fi
 
-if [ "$ACTION" = "purge" ]; then
+if [ "$ACTION" = "destroy" ]; then
   # remove cntainers
   __log_run docker stop $SERVICE_NAME 2>/dev/null
   __log_run docker rm $SERVICE_NAME 2>/dev/null
