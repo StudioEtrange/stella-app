@@ -63,7 +63,7 @@ nor polluted the system.
   https://my-netdata.io
 
 ```
-  ./netdata.sh -h
+  ./netdata-service.sh -h
 ```
 
 * **portainer-service** *[NEEDS docker]*
@@ -94,6 +94,29 @@ nor polluted the system.
   ./docker-registry-service.sh -h
 ```
 
+* **minio-service** *[NEEDS docker]*
+
+  Deploy a minio service as a docker container for object storage server with S3 compatibility
+
+```
+  ./minio-service.sh -h
+```
+
+Use it with a docker volume manager
+
+
+```
+  # deploy minio S3 service
+  ./minio-service create --accesskey=accessfoo --secretkey=secretfoo --storagepath=$(pwd)/miniostore
+
+  # install docker plugin rexray/s3fs
+  docker plugin install rexray/s3fs --grant-all-permissions S3FS_OPTIONS="allow_other,use_path_request_style,nonempty,url=http://localhost:9000" S3FS_ENDPOINT="http://localhost:9000" S3FS_ACCESSKEY="accessfoo" S3FS_SECRETKEY="secretfoo"
+
+  # create & test volume
+  docker volume create --driver rexray/s3fs testvolume
+  docker run -rm -v testvolume:/data bash -c 'echo "test" > /data/test.txt'
+  docker run -rm -v testvolume:/data bash -c 'cat /data/test.txt'
+```
 
 * **consul-service** *[NEEDS docker]*
 

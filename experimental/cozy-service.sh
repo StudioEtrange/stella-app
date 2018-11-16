@@ -2,7 +2,7 @@
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
 STELLA_APP_PROPERTIES_FILENAME="cozy-service.properties"
-. $_CURRENT_FILE_DIR/stella-link.sh include
+. $_CURRENT_FILE_DIR/../stella-link.sh include
 
 # TODO WIP - NOT FINISHED
 

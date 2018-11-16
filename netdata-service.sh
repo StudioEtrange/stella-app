@@ -31,6 +31,7 @@ function usage() {
   echo "L     --if : netdata listening network interface (Use --ip OR --if. --if have priority)"
   echo "L     --version : netdata version"
   echo "L     --debug : active some debug trace"
+  echo "L     --netdataarg : netdata options passed to netdata binary command line"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
@@ -41,10 +42,11 @@ OPTIONS="
 IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  Listening netdata ip.
 IF='' 						'' 			'string'				s 			0			''		  Listening netdata network interface.
 PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening netdata port.
+NETDATAARG='' 						'' 			'string'				s 			0			''		  Netdata options passed to netdata binary command line.
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Netdata version (check available version on netdata website).
 DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "DOCKERARG" "$@"
 
 
 DOCKER_IMAGE_VERSION=$VERSION
@@ -76,9 +78,10 @@ if [ "$ACTION" = "create" ]; then
               -v /sys:/host/sys:ro \
               -e NETDATA_PORT=$PORT \
               -e NETDATA_IP=$IP \
+              -e NETDATA_ARGS=${NETDATAARG} \
               --net=host \
               -v /var/run/docker.sock:/var/run/docker.sock \
-              $APPARG $DOCKER_URI
+              $DOCKERARG $DOCKER_URI
 
 fi
 
