@@ -10,6 +10,7 @@ STELLA_APP_PROPERTIES_FILENAME="cloud9-tool.properties"
 # https://github.com/StudioEtrange/dockerfiles
 
 # NOTE : cloud9 do not use docker 'restart always' option, cause it is an IDE on demand, a tool, not really a service
+# TODO : add usefull tools not present in default image (ssh,...)
 
 DEFAULT_HTTP_PORT=20001
 DEFAULT_WORKSPACE="$HOME"
@@ -31,7 +32,7 @@ function usage() {
   echo "L     stop [--version=<version>] : stop tool"
   echo "L     status : give tool status info"
   echo "L     shell : launch a shell inside running tool"
-  echo "L     purge : purge tool"
+  echo "L     destroy : destroy tool"
   echo "o-- options :"
   echo "L     --http : cloud9 http port"
   echo "L     --workspace : Mounted workspace folder into cloud9. File permissions used inside that folder are yours"
@@ -43,7 +44,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell purge'
+ACTION=											'' 			a				'create start stop status shell destroy'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Listening cloud9 http port.
@@ -149,7 +150,7 @@ if [ "$ACTION" = "shell" ]; then
     __log_run docker exec -it $SERVICE_NAME bash
 fi
 
-if [ "$ACTION" = "purge" ]; then
+if [ "$ACTION" = "destroy" ]; then
   # remove cntainers
   __log_run docker stop $SERVICE_NAME 2>/dev/null
   __log_run docker rm $SERVICE_NAME 2>/dev/null

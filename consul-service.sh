@@ -49,7 +49,7 @@ function usage() {
   echo "L     stop <client|server> <id> : stop service"
   echo "L     status <client|server> <id> : give service status info"
   echo "L     shell <client|server> <id> : launch a shell inside running service"
-  echo "L     purge <client|server> <id> [--version=<version>] : purge service"
+  echo "L     destroy <client|server> <id> [--version=<version>] : destroy service"
   echo "o-- options :"
   echo "L     --http : consul http api port"
   echo "L     --dns : consul dns port"
@@ -65,7 +65,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell purge'
+ACTION=											'' 			a				'create start stop status shell destroy'
 TARGET=											'' 			a				'client server'
 ID=											'' 			s				''
 "
@@ -164,7 +164,7 @@ if [ "$ACTION" = "shell" ]; then
     __log_run docker exec -it $SERVICE_NAME sh
 fi
 
-if [ "$ACTION" = "purge" ]; then
+if [ "$ACTION" = "destroy" ]; then
   # remove cntainers
   __log_run docker stop $SERVICE_NAME 2>/dev/null
   __log_run docker rm $SERVICE_NAME 2>/dev/null
