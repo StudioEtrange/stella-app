@@ -32,7 +32,7 @@ function usage() {
   echo "L     start [--version=<version>] : start tool"
   echo "L     stop [--version=<version>] : stop tool"
   echo "L     status : give resource status"
-  echo "L     info : give service information"
+  echo "L     info : get some service information"
   echo "L     shell : launch a shell inside running tool"
   echo "L     destroy : destroy tool"
   echo "o-- options :"
@@ -96,8 +96,9 @@ __require_bindfs_docker_plugin() {
 
 
 __get_service_endpoint() {
-  __internal_service_port="$1"
-  __port="$(docker inspect --format='{{(index (index .NetworkSettings.Ports "$__internal_service_port/tcp") 0).HostPort}}' $SERVICE_NAME)"
+  __docker_name="$1"
+  __internal_service_port="$2"
+  __port="$(docker inspect --format="{{(index (index .NetworkSettings.Ports "$__internal_service_port/tcp") 0).HostPort}}" $__docker_name)"
   echo "http://$(hostname):$__port"
 }
 
@@ -139,12 +140,12 @@ if [ "$ACTION" = "create" ]; then
             --auth :
     fi
 
-    __get_service_endpoint "8181"
+    __get_service_endpoint "$SERVICE_NAME" "8181"
 fi
 
 if [ "$ACTION" = "start" ]; then
     __log_run docker start $SERVICE_NAME
-    __get_service_endpoint "8181"
+    __get_service_endpoint "$SERVICE_NAME" "8181"
 fi
 
 if [ "$ACTION" = "stop" ]; then
@@ -156,7 +157,7 @@ if [ "$ACTION" = "status" ]; then
 fi
 
 if [ "$ACTION" = "info" ]; then
-    __get_service_endpoint "8181"
+    __get_service_endpoint "$SERVICE_NAME" "8181"
 fi
 
 if [ "$ACTION" = "shell" ]; then
