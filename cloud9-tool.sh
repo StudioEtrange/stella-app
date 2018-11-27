@@ -12,7 +12,8 @@ STELLA_APP_PROPERTIES_FILENAME="cloud9-tool.properties"
 # NOTE : cloud9 do not use docker 'restart always' option, cause it is an IDE on demand, a tool, not really a service
 # TODO : add usefull tools not present in default image (ssh,...)
 
-DEFAULT_HTTP_PORT=20001
+# default http port is empty, so docker will choose one free
+DEFAULT_HTTP_PORT=
 DEFAULT_WORKSPACE="$HOME"
 DEFAULT_LOGIN=
 DEFAULT_PASSWORD=
