@@ -31,7 +31,8 @@ function usage() {
   echo "L     create [--version=<version>] [--http=<port>] [--workspace=<path>] [--login=<string>] [--password=<string>] : create & launch tool (must be use once before starting/stopping tool)"
   echo "L     start [--version=<version>] : start tool"
   echo "L     stop [--version=<version>] : stop tool"
-  echo "L     status : give tool status info"
+  echo "L     status : give resource status"
+  echo "L     info : give service information"
   echo "L     shell : launch a shell inside running tool"
   echo "L     destroy : destroy tool"
   echo "o-- options :"
@@ -45,7 +46,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy'
+ACTION=											'' 			a				'create start stop status shell destroy info'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Listening cloud9 http port.
@@ -94,6 +95,11 @@ __require_bindfs_docker_plugin() {
 }
 
 
+__get_service_endpoint() {
+  __internal_service_port="$1"
+  __port="$(docker inspect --format='{{(index (index .NetworkSettings.Ports "$__internal_service_port/tcp") 0).HostPort}}' $SERVICE_NAME)"
+  echo "http://$(hostname):$__port"
+}
 
 if [ "$ACTION" = "create" ]; then
     # delete and stop previously stored container and volume
@@ -133,10 +139,12 @@ if [ "$ACTION" = "create" ]; then
             --auth :
     fi
 
+    __get_service_endpoint "8181"
 fi
 
 if [ "$ACTION" = "start" ]; then
     __log_run docker start $SERVICE_NAME
+    __get_service_endpoint "8181"
 fi
 
 if [ "$ACTION" = "stop" ]; then
@@ -145,6 +153,10 @@ fi
 
 if [ "$ACTION" = "status" ]; then
     __log_run docker stats $SERVICE_NAME
+fi
+
+if [ "$ACTION" = "info" ]; then
+    __get_service_endpoint "8181"
 fi
 
 if [ "$ACTION" = "shell" ]; then
