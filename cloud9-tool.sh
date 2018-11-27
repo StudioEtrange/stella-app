@@ -97,8 +97,8 @@ __require_bindfs_docker_plugin() {
 
 __get_service_endpoint() {
   __docker_name="$1"
-  __internal_service_port="$2"
-  __port="$(docker inspect --format="{{(index (index .NetworkSettings.Ports "$__internal_service_port/tcp") 0).HostPort}}" $__docker_name)"
+  __internal_port="$2"
+  __port="$(docker inspect --format='{{(index (index .NetworkSettings.Ports "'$__internal_port/tcp'") 0).HostPort}}' $__docker_name)"
   echo "http://$(hostname):$__port"
 }
 
