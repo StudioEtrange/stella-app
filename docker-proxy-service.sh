@@ -105,8 +105,8 @@ function usage() {
   echo "NOTE : It use registrator, nginx, and consul-template. It needs consul. You may deploy consul with consul-service"
   echo "----------------"
   echo "o-- command :"
-  echo "L     create <proxy> [--version=<version>] [--consul=<uri>] [--proxy=<port>] [--template=<path>] : create & launch proxy/proxygen service (must be use once before starting/stopping service). Proxy and Proxy-gen are created together."
-  echo "L     create <registrator> [--version=<version>] [--consul=<uri>] [--serviceip=<ip>|--serviceif=<interface>] : create & launch registrator service (must be use once before starting/stopping service)."
+  echo "L     create <proxy> [--version=<version>] [--consul=<uri>] [--proxy=<port>] [--template=<path>] [-- additional docker run options] : create & launch proxy/proxygen service (must be use once before starting/stopping service). Proxy and Proxy-gen are created together."
+  echo "L     create <registrator> [--version=<version>] [--consul=<uri>] [--serviceip=<ip>|--serviceif=<interface>] [-- additional docker run options] : create & launch registrator service (must be use once before starting/stopping service)."
   echo "L     start <registrator|proxy|proxygen> : start service"
   echo "L     stop <registrator|proxy|proxygen> : stop service"
   echo "L     status <registrator|proxy|proxygen> : give service status info"
@@ -136,7 +136,7 @@ VERSION='' 			    'v' 			'string'				s 			0			''		  Docker image version.
 TEMPLATE='$DEFAULT_TEMPLATE' 						'' 			'string'				s 			0			''		  Template file for proxy-gen (ex : /path/nginx.ctmpl).
 DEBUG=''            'd'    		''            		b     		0     		'1'           		Active some debug trace.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "DOCKERARG" "$@"
 
 # FUNCTIONS --------------------------------------
 __compute_var() {
@@ -191,7 +191,7 @@ if [ "$ACTION" = "create" ]; then
               --restart always \
               --net=host \
               -v /var/run/docker.sock:/tmp/docker.sock \
-              $DOCKER_URI \
+              $DOCKERARG $DOCKER_URI \
               consul://$__stella_uri_address
           else
             __log_run docker run -d \
@@ -199,7 +199,7 @@ if [ "$ACTION" = "create" ]; then
               --restart always \
               --net=host \
               -v /var/run/docker.sock:/tmp/docker.sock \
-              $DOCKER_URI \
+              $DOCKERARG $DOCKER_URI \
               -ip=$SERVICEIP \
               consul://$__stella_uri_address
           fi
@@ -221,7 +221,7 @@ if [ "$ACTION" = "create" ]; then
             --restart always \
             -p $PROXY:80 \
             -v $SERVICE_DATA_NAME:/etc/nginx/conf.d \
-            $DOCKER_URI
+            $DOCKERARG $DOCKER_URI
 
 
           # launch nginx dynamic configurator
@@ -235,7 +235,7 @@ if [ "$ACTION" = "create" ]; then
             -e CONSUL_TEMPLATE_LOG=debug \
             --volumes-from ${DEFAULT_SERVICE_NAME}-proxy \
             -v /var/run/docker.sock:/tmp/docker.sock $_OPT \
-            $DOCKER_URI \
+            $DOCKERARG $DOCKER_URI \
             -consul-addr=$__stella_uri_address -wait=5s \
             -template="/tmp/nginx.ctmpl:/etc/nginx/conf.d/default.conf:docker kill -s HUP ${DEFAULT_SERVICE_NAME}-proxy"
         ;;
