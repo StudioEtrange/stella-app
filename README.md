@@ -118,6 +118,17 @@ Use it with a docker volume manager
   docker run -rm -v testvolume:/data bash -c 'cat /data/test.txt'
 ```
 
+
+* **ofelia-service** *[NEEDS docker]*
+
+  Ofelia is a job scheduler for docker. https://github.com/mcuadros/ofelia
+
+  `ofelia-service` can manage several jobs by using multiple ofelia instances.
+
+```
+  ./ofelia-service.sh -h
+```
+
 * **consul-service** *[NEEDS docker]*
 
   Consul is a service discovery, key store and conf store

@@ -8,15 +8,18 @@ STELLA_APP_PROPERTIES_FILENAME="traefik-service.properties"
 # https://store.docker.com/images/traefik
 # https://github.com/sapk/dockerfiles
 
-
+# SERVICE INFO --------------------------------------
 DEFAULT_HTTP_PORT=80
 DEFAULT_HTTP_ADMIN_PORT=8080
 DEFAULT_CONF="$STELLA_APP_ROOT/traefik-pool/traefik.toml"
-
-DEFAULT_DOCKER_IMAGE="traefik"
-DEFAULT_DOCKER_IMAGE_VERSION="alpine"
 DEFAULT_SERVICE_NAME="traefik-service"
 
+# DOCKER IMAGES INFO --------------------------------------
+DEFAULT_DOCKER_IMAGE="traefik"
+DEFAULT_DOCKER_IMAGE_VERSION="alpine"
+
+
+# USAGE --------------------------------------
 function usage() {
   echo "USAGE :"
   echo "Traefik service as docker instance on current host to get a modern reverse proxy"
@@ -61,7 +64,7 @@ DEBUG=''            'd'    		''            		b     		0     		'1'           			Wi
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
-
+# ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
 DOCKER_IMAGE_VERSION=$VERSION
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
@@ -70,13 +73,13 @@ SERVICE_NAME=$DEFAULT_SERVICE_NAME
 # test docker client is installed in this system
 $STELLA_API require "docker" "docker" "SYSTEM"
 
-
+# FUNCTIONS --------------------------------------
 __log_run() {
 	[ "$DEBUG" = "1" ] && echo ">" $@
 	"$@"
 }
 
-
+# ------------- ACTIONS -------------------------
 if [ "$ACTION" = "create" ]; then
     # delete and stop previously stored container and volume
     __log_run docker stop $SERVICE_NAME 2>/dev/null

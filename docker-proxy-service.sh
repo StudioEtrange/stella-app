@@ -14,7 +14,18 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 # consul & proxy (and proxy-gen) should be deployed only on ONE main node
 # registrator should be deployed on any scanned node
 
+# -------- TIPS --------
+# see current nginx config
+# docker exec docker-proxy-service-proxygen cat /etc/nginx/conf/default.conf
 
+# see nginx proxy logs
+# docker logs docker-proxy-service-proxy
+
+# test current nginx config
+# docker exec docker-proxy-service-proxy nginx -t
+
+# see env enregistring
+# docker logs docker-proxy-service-registrator
 
 # -------- FULL SAMPLES with docker-machine --------
 # ./stella-link.sh feature install docker
@@ -165,8 +176,10 @@ __log_run() {
 	"$@"
 }
 
+# ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
 
 
+# ------------- ACTIONS -------------------------
 if [ "$ACTION" = "create" ]; then
 
 

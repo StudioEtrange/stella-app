@@ -17,14 +17,16 @@ STELLA_APP_PROPERTIES_FILENAME="minio-service.properties"
 # docker run -rm -v testvol:/data bash -c 'echo "test" > /data/test.txt'
 # docker run -rm -v testvol:/data bash -c 'cat /data/test.txt'
 
-
+# SERVICE INFO --------------------------------------
 DEFAULT_PORT=9000
-DEFAULT_DOCKER_IMAGE="minio/minio"
-DEFAULT_DOCKER_IMAGE_VERSION="latest"
 DEFAULT_SERVICE_NAME="minio-service"
 DEFAULT_STORAGE_PATH="$STELLA_APP_WORK_ROOT/storage"
 
+# DOCKER IMAGES INFO --------------------------------------
+DEFAULT_DOCKER_IMAGE="minio/minio"
+DEFAULT_DOCKER_IMAGE_VERSION="latest"
 
+# USAGE --------------------------------------
 function usage() {
   echo "USAGE :"
   echo "minio service as a docker container for object storage server with S3 compatibility"
@@ -58,7 +60,13 @@ SECRETKEY='' 						'' 			'key'				s 			0			''		  Storage secret key.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
+# FUNCTIONS --------------------------------------
+__log_run() {
+	[ "$DEBUG" = "1" ] && echo ">" $@
+	"$@"
+}
 
+# ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
 DOCKER_IMAGE_VERSION=$VERSION
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
@@ -68,11 +76,8 @@ SERVICE_DATA_NAME="$SERVICE_NAME"
 # test docker client is installed in this system
 $STELLA_API require "docker" "docker" "SYSTEM"
 
-__log_run() {
-	[ "$DEBUG" = "1" ] && echo ">" $@
-	"$@"
-}
 
+# ------------- ACTIONS -------------------------
 if [ "$ACTION" = "create" ]; then
   # delete previously stored container
   __log_run docker stop $SERVICE_NAME 2>/dev/null

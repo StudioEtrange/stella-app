@@ -22,21 +22,20 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 # NOTE : docker consul -bind and -client options can not be 0.0.0.0
 # CONSUL_CLIENT_INTERFACE and/or CONSUL_BIND_INTERFACE could be use to specify interface
 
+# SERVICE INFO --------------------------------------
 DEFAULT_HTTP_PORT=8500
 DEFAULT_DNS_PORT=8600
 DEFAULT_PROXY_PORT=80
 DEFAULT_IP=$STELLA_HOST_DEFAULT_IP
-
-
-DEFAULT_DOCKER_IMAGE="consul"
-DEFAULT_DOCKER_IMAGE_VERSION="1.0.6"
 DEFAULT_SERVICE_NAME="consul-service"
 
-# work even if we pass an ip
-__convert_hostname_to_ip() {
-  echo "$(ping -c 1 $1 | gawk -F '[()]' '/PING/{print $2}')"
-}
+# DOCKER IMAGES INFO --------------------------------------
+DEFAULT_DOCKER_IMAGE="consul"
+DEFAULT_DOCKER_IMAGE_VERSION="1.0.6"
 
+
+
+# USAGE --------------------------------------
 function usage() {
   echo "USAGE :"
   echo "Consul service as docker instance on current host"
@@ -83,6 +82,18 @@ DOMAINNAME='' 			'' 			'string'				s 			0			''		  Consul domain name.
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
 
+# FUNCTIONS --------------------------------------
+__log_run() {
+	[ "$DEBUG" = "1" ] && echo ">" $@
+	"$@"
+}
+
+# work even if we pass an ip
+__convert_hostname_to_ip() {
+  echo "$(ping -c 1 $1 | gawk -F '[()]' '/PING/{print $2}')"
+}
+
+# ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
 DOCKER_IMAGE_VERSION=$VERSION
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
@@ -103,12 +114,7 @@ CONSULIP="$(__convert_hostname_to_ip $CONSULIP)"
 $STELLA_API require "docker" "docker" "SYSTEM"
 
 
-__log_run() {
-	[ "$DEBUG" = "1" ] && echo ">" $@
-	"$@"
-}
-
-
+# ------------- ACTIONS -------------------------
 if [ "$ACTION" = "create" ]; then
     # delete and stop previously stored container and volume
     __log_run docker stop $SERVICE_NAME 2>/dev/null

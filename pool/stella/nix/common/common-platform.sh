@@ -208,9 +208,11 @@ __override_platform_command() {
 	fi
 
 	if [ "$STELLA_CURRENT_PLATFORM" = "darwin" ]; then
-		GETOPT_CMD=PURE_BASH
+		#GETOPT_CMD=PURE_BASH
+		STELLA_ARGPARSE_GETOPT_DEFAULT=PURE_BASH
 	else
-		GETOPT_CMD=getopt
+		#GETOPT_CMD=getopt
+		STELLA_ARGPARSE_GETOPT_DEFAULT=getopt
 	fi
 
 
@@ -345,6 +347,11 @@ __gcc_is_clang() {
 	else
 		echo "1"
 	fi
+}
+
+# NOTE apple-clang-llvm versions are not synchronized with clang-llvm versions
+__clang_version() {
+	clang --version | head -n 1 | grep -o -E "[[:digit:]].[[:digit:]].[[:digit:]]" | head -1
 }
 
 # RUNTIME specific --------------------------------------------------------
@@ -569,6 +576,52 @@ __use_package_manager() {
 	fi
 
 }
+# ----------- ANSIBLE -----------------------------------------------------
+
+
+# ARG1 playbook yml file
+# ARG2 roles root folder
+# ARG3 inventory file
+# ARG4 limit execution to some host
+__ansible_play() {
+  local __playbook="$1"
+  local __roles="$2"
+	local __inventory_file="$3"
+	local __limit="$4"
+	[ -z $__limit ] && __limit=all
+
+  #ANSIBLE_EXTRA_VARS=\{\"infra_name\":\"$INFRA_NAME\"}
+	#--extra-vars=$ANSIBLE_EXTRA_VARS
+	ANSIBLE_ROLES_PATH="$__roles" PYTHONUNBUFFERED=1 ANSIBLE_FORCE_COLOR=true ansible-playbook --inventory-file="$__inventory_file" --limit="$__limit" -v "$__playbook"
+}
+
+# ARG1 playbook yml file
+# ARG2 roles root folder
+__ansible_play_localhost() {
+  local __playbook="$1"
+	local __roles="$2"
+
+  #ANSIBLE_EXTRA_VARS=\{\"infra_name\":\"$INFRA_NAME\"}
+		#--extra-vars=$ANSIBLE_EXTRA_VARS
+  ANSIBLE_ROLES_PATH="$__roles" PYTHONUNBUFFERED=1 ANSIBLE_FORCE_COLOR=true ansible-playbook --connection local --inventory 'localhost,' -v "$__playbook"
+
+
+}
+
+#
+# __ansible_play_vagrant() {
+#   INFRA_NAME="$1"
+#   PLAYBOOK="$2"
+#   LIMIT="$3"
+#   [ -z $LIMIT ] && LIMIT=all
+#
+#   ANSIBLE_INVENTORY_FILE=$STELLA_APP_ROOT/infra/$INFRA_NAME/.vagrant/provisioners/ansible/inventory
+#   ANSIBLE_PLAYBOOK=$STELLA_APP_ROOT/infra/playbook/$PLAYBOOK.yml
+#
+#   ANSIBLE_EXTRA_VARS=\{\"infra_name\":\"$INFRA_NAME\",\"proxy_name\":\"sesame\"\}
+#   ANSIBLE_ROLES_PATH=$STELLA_APP_ROOT/infra/roles PYTHONUNBUFFERED=1 ANSIBLE_FORCE_COLOR=true ANSIBLE_HOST_KEY_CHECKING=false ANSIBLE_SSH_ARGS='-o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes -o ControlMaster=auto -o ControlPersist=60s' ansible-playbook --connection=ssh --timeout=30 --inventory-file=$ANSIBLE_INVENTORY_FILE --limit=$LIMIT --extra-vars=$ANSIBLE_EXTRA_VARS -v $ANSIBLE_PLAYBOOK
+# }
+
 
 # --------- SYSTEM INSTALL/REMOVE RECIPES------------------------------------
 __sys_install() {
@@ -587,6 +640,10 @@ __sys_install_docker() {
 	# NOTE install with ansible : https://medium.com/@tedchength/installing-docker-using-ansible-script-c182787f2fa1
 	# NOTE install specific version : https://forums.docker.com/t/how-can-i-install-a-specific-version-of-the-docker-engine/1993/6
 	#																	http://www.hashjoin.com/t/upgrade-docker-engine-specific-version.html
+	#																	https://github.com/StudioEtrange/install-docker
+	# NOTE dockerd service is not always auto started
+	#					sudo systemctl enable docker
+	#					sudo systemctl start docker
 	local _version=$1
 	echo " ** Install Docker $_version on your system"
 	if [ "$STELLA_CURRENT_OS" = "macos" ]; then

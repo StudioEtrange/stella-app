@@ -5,12 +5,15 @@ STELLA_APP_PROPERTIES_FILENAME="portainer-service.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
 
-
+# SERVICE INFO --------------------------------------
 DEFAULT_PORT=20000
-DEFAULT_DOCKER_IMAGE="portainer/portainer"
-DEFAULT_DOCKER_IMAGE_VERSION="latest"
 DEFAULT_SERVICE_NAME="portainer-service"
 
+# DOCKER IMAGES INFO --------------------------------------
+DEFAULT_DOCKER_IMAGE="portainer/portainer"
+DEFAULT_DOCKER_IMAGE_VERSION="latest"
+
+# USAGE --------------------------------------
 function usage() {
   echo "USAGE :"
   echo "portainer service as a docker container for managing container"
@@ -40,7 +43,7 @@ DEBUG=''            'd'    		''            		b     		0     		'1'           			Ac
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
-
+# ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
 DOCKER_IMAGE_VERSION=$VERSION
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
@@ -50,11 +53,13 @@ SERVICE_DATA_NAME="$SERVICE_NAME"
 # test docker client is installed in this system
 $STELLA_API require "docker" "docker" "SYSTEM"
 
+# FUNCTIONS --------------------------------------
 __log_run() {
 	[ "$DEBUG" = "1" ] && echo ">" $@
 	"$@"
 }
 
+# ------------- ACTIONS -------------------------
 if [ "$ACTION" = "create" ]; then
   # delete previously stored container
   __log_run docker stop $SERVICE_NAME 2>/dev/null

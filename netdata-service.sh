@@ -7,12 +7,16 @@ STELLA_APP_PROPERTIES_FILENAME="netdata-service.properties"
 # https://github.com/firehol/netdata
 # https://github.com/titpetric/netdata
 
+# SERVICE INFO --------------------------------------
 DEFAULT_PORT=19999
 DEFAULT_IP="0.0.0.0"
-DEFAULT_DOCKER_IMAGE="titpetric/netdata"
-DEFAULT_DOCKER_IMAGE_VERSION="latest"
 DEFAULT_SERVICE_NAME="netdata-service"
 
+# DOCKER IMAGES INFO --------------------------------------
+DEFAULT_DOCKER_IMAGE="titpetric/netdata"
+DEFAULT_DOCKER_IMAGE_VERSION="latest"
+
+# USAGE --------------------------------------
 function usage() {
   echo "USAGE :"
   echo "netdata service as a docker container for monitoring current host"
@@ -49,6 +53,13 @@ DEBUG=''            'd'    		''            		b     		0     		'1'           			Ac
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "DOCKERARG" "$@"
 
 
+# FUNCTIONS --------------------------------------
+__log_run() {
+	[ "$DEBUG" = "1" ] && echo ">" $@
+	"$@"
+}
+
+# ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
 DOCKER_IMAGE_VERSION=$VERSION
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
@@ -57,12 +68,7 @@ SERVICE_NAME=$DEFAULT_SERVICE_NAME
 # test docker client is installed in this system
 $STELLA_API require "docker" "docker" "SYSTEM"
 
-__log_run() {
-	[ "$DEBUG" = "1" ] && echo ">" $@
-	"$@"
-}
-
-# https://github.com/titpetric/netdata
+# ------------- ACTIONS -------------------------
 if [ "$ACTION" = "create" ]; then
   # delete previously stored container
   __log_run docker stop $SERVICE_NAME 2>/dev/null

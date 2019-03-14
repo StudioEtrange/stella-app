@@ -9,19 +9,22 @@ STELLA_APP_PROPERTIES_FILENAME="cloud9-tool.properties"
 # https://github.com/sapk/dockerfiles
 # https://github.com/StudioEtrange/dockerfiles
 
-# NOTE : cloud9 do not use docker 'restart always' option, cause it is an IDE on demand, a tool, not really a service
+# NOTE : cloud9-tool do not use docker 'restart always' option, cause it is an IDE on demand, a tool, not really a service
 # TODO : add usefull tools not present in default image (ssh,...)
 
+# TOOL INFO --------------------------------------
 # default http port is empty, so docker will choose one free
 DEFAULT_HTTP_PORT=
 DEFAULT_WORKSPACE="$HOME"
 DEFAULT_LOGIN=
 DEFAULT_PASSWORD=
-
-DEFAULT_DOCKER_IMAGE="sapk/cloud9"
-DEFAULT_DOCKER_IMAGE_VERSION="alpine"
 DEFAULT_SERVICE_NAME="cloud9-tool"
 
+# DOCKER IMAGES INFO --------------------------------------
+DEFAULT_DOCKER_IMAGE="sapk/cloud9"
+DEFAULT_DOCKER_IMAGE_VERSION="alpine"
+
+# USAGE --------------------------------------
 function usage() {
   echo "USAGE :"
   echo "cloud9 IDE as a docker container on current host to get a web IDE for developement"
@@ -59,6 +62,7 @@ DEBUG=''            'd'    		''            		b     		0     		'1'           			Ac
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
 
+# ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
 DOCKER_IMAGE_VERSION=$VERSION
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
@@ -68,6 +72,7 @@ SERVICE_DATA_NAME="vol-$SERVICE_NAME"
 # test docker client is installed in this system
 $STELLA_API require "docker" "docker" "SYSTEM"
 
+# FUNCTIONS --------------------------------------
 __log_run() {
 	[ "$DEBUG" = "1" ] && echo ">" $@
 	"$@"
@@ -102,6 +107,7 @@ __get_service_endpoint() {
   echo "http://$(hostname):$__port"
 }
 
+# ------------- ACTIONS -------------------------
 if [ "$ACTION" = "create" ]; then
     # delete and stop previously stored container and volume
     __log_run docker stop $SERVICE_NAME 2>/dev/null
