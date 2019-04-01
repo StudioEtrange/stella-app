@@ -349,6 +349,52 @@ __gcc_is_clang() {
 	fi
 }
 
+# linker search path
+# arch : x64|x86
+#				if empty the default system current arch will be used
+# LINUX https://stackoverflow.com/questions/9922949/how-to-print-the-ldlinker-search-path
+# NOTE ON MACOS
+#			 https://opensource.apple.com/source/dyld/dyld-519.2.1/src/dyld.cpp.auto.html
+#			 hardcoded values https://opensource.apple.com/source/dyld/dyld-519.2.1/src/dyld.cpp.auto.html
+#												can be checked with : gcc  -Xlinker -v
+__default_linker_search_path() {
+	local __arch="$1"
+	if [ "$STELLA_CURRENT_PLATFORM" = "linux" ]; then
+		[ "$__arch" = "x64" ] && $__arch="-m64"
+		[ "$__arch" = "x86" ] && $__arch="-m32"
+		gcc $__arch -Xlinker --verbose  2>/dev/null | grep SEARCH | sed 's/SEARCH_DIR("=\?\([^"]\+\)"); */\1\n/g'  | grep -vE '^$'
+	fi
+	if [ "$STELLA_CURRENT_PLATFORM" = "darwin" ]; then
+		echo "/usr/local/lib:/usr/lib"
+	fi
+}
+
+# gcc hardcoded libraries search path
+# https://stackoverflow.com/questions/9922949/how-to-print-the-ldlinker-search-path
+__gcc_lib_search_path() {
+	if [ "$STELLA_CURRENT_PLATFORM" = "linux" ]; then
+		gcc -print-search-dirs | sed '/^lib/b 1;d;:1;s,/[^/.][^/]*/\.\./,/,;t 1;s,:[^=]*=,:;,;s,;,;  ,g' | tr \; \\012
+	fi
+}
+
+# ld search path during linking (-L flag)"
+# see __default_linker_search_path
+# ld not used on macos
+# https://stackoverflow.com/questions/9922949/how-to-print-the-ldlinker-search-path
+__ld_link_search_path() {
+	if [ "$STELLA_CURRENT_PLATFORM" = "linux" ]; then
+		ld --verbose 2>/dev/null | grep SEARCH | sed 's/SEARCH_DIR("=\?\([^"]\+\)"); */\1\n/g'  | grep -vE '^$'
+	fi
+}
+
+# pkg-config full search path
+# https://linux.die.net/man/1/pkg-config
+__pkgconfig_search_path() {
+	if $(type pkg-config &>/dev/null); then
+		echo ${PKG_CONFIG_PATH}:$(pkg-config --variable pc_path pkg-config)
+	fi
+}
+
 # NOTE apple-clang-llvm versions are not synchronized with clang-llvm versions
 __clang_version() {
 	clang --version | head -n 1 | grep -o -E "[[:digit:]].[[:digit:]].[[:digit:]]" | head -1
@@ -356,6 +402,8 @@ __clang_version() {
 
 # RUNTIME specific --------------------------------------------------------
 
+# python path
+# https://stackoverflow.com/questions/122327/how-do-i-find-the-location-of-my-python-site-packages-directory
 
 # retrieve current pyconfig.h
 __python_get_pyconfig() {
@@ -369,6 +417,19 @@ __python_get_lib_path() {
 	python -c 'import sysconfig;print(sysconfig.get_path("stdlib"));'
 }
 
+# get python global site-packages path
+# https://stackoverflow.com/a/46071447
+__python_get_site_packages_global_path() {
+	# /Library/Python/2.7/site-packages
+	python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"
+}
+
+# get python current user	site-packages path
+# https://stackoverflow.com/a/46071447
+__python_get_site_packages_user_path() {
+	# /Library/Python/2.7/site-packages
+	python -m site --user-site
+}
 
 # get python version on 1 digits (2, 3, ...)
 __python_major_version() {
@@ -447,6 +508,7 @@ __yum_add_extra_repositories() {
 	__get_resource "epel" "https://dl.fedoraproject.org/pub/epel/epel-release-latest-${_version}.noarch.rpm" "HTTP" "$STELLA_APP_WORK_ROOT" "FORCE_NAME epel-release-latest-${_version}.noarch.rpm"
 	__sudo_exec rpm -Uvh "$STELLA_APP_WORK_ROOT/epel-release-latest-${_version}.noarch.rpm"
 
+	__sudo_exec yum-config-manager --enable epel
 	__sudo_exec yum clean all
 }
 
@@ -502,43 +564,32 @@ __use_package_manager() {
 	local _packages=
 	for o in $_packages_list; do
 		[ "$o" = "|" ] && _flag_package_manager=OFF
-		[ "$_flag_package_manager" = "ON" ] && _packages="$_packages $o"
+		[ "$_flag_package_manager" = "ON" ] && _packages="${_packages} $o"
 		# NOTE : exception here for "brew-cask", because the package manager name is always just "brew"
 		[ "$o" = "$_package_manager"-cask ] && _flag_package_manager=ON && _package_manager="brew-cask"
 		[ "$o" = "$_package_manager" ] && _flag_package_manager=ON
 	done
 
-	[ "$_packages" = "" ] && echo " ** WARN : we do not find any configured package for $_id with $_package_manager"
+	[ "${_packages}" = "" ] && echo " ** WARN : we do not find any configured package for $_id with $_package_manager"
 
 	if [ "$_action" = "INSTALL" ]; then
 		case $_package_manager in
 			apt-get)
 				__sudo_exec apt-get update
-				__sudo_exec apt-get -y install
-				#type sudo &>/dev/null && \
-				#	sudo -E apt-get update && \
-				#	sudo -E apt-get -y install $_packages || \
-				#	apt-get update && \
-				#	apt-get -y install $_packages
+				__sudo_exec apt-get -y install ${_packages}
 				;;
 			brew)
-				brew install $_packages
+				brew install ${_packages}
 				;;
 			brew-cask)
-				brew cask install $_packages
+				brew cask install ${_packages}
 				;;
 			yum)
-				__sudo_exec yum install -y $_packages
-				#sudo -E yum install -y $_packages
+				__sudo_exec yum install -y ${_packages}
 				;;
 			apk)
 				__sudo_exec apk update
-				__sudo_exec apk add $_packages
-				#type sudo &>/dev/null && \
-				#	sudo -E apk update && \
-				#	sudo -E apk add $_packages || \
-				#	apk update && \
-				#	apk add $_packages
+				__sudo_exec apk add ${_packages}
 				;;
 			*)	echo " ** WARN : dont know how to install $_id"
 				;;
@@ -550,25 +601,25 @@ __use_package_manager() {
 				# TODO use __sudo_exec
 				type sudo &>/dev/null && \
 					sudo -E apt-get update && \
-					sudo -E apt-get -y autoremove --purge $_packages || \
+					sudo -E apt-get -y autoremove --purge ${_packages} || \
 						apt-get update && \
-						apt-get -y autoremove --purge $_packages
+						apt-get -y autoremove --purge ${_packages}
 				;;
 			brew)
-				brew uninstall $_packages
+				brew uninstall ${_packages}
 				;;
 			brew-cask)
-				brew cask uninstall $_packages
+				brew cask uninstall ${_packages}
 				;;
 			yum)
 				# TODO use __sudo_exec
-				sudo -E yum remove -y $_packages
+				sudo -E yum remove -y ${_packages}
 				;;
 			apk)
 				# TODO use __sudo_exec
 					type sudo &>/dev/null && \
-					sudo -E apk del $_packages || \
-						apk del $_packages
+					sudo -E apk del ${_packages} || \
+						apk del ${_packages}
 				;;
 			*)	echo " ** WARN : dont know how to remove $_id"
 				;;

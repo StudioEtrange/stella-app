@@ -9,13 +9,28 @@ _STELLA_COMMON_INCLUDED_=1
 
 # VARIOUS-----------------------------
 
+# generate a random password
+# NOTE on macos : need LC_CTYPE=C http://nerdbynature.de/s9y/2010/04/11/tr-Illegal-byte-sequence
+# https://www.howtogeek.com/howto/30184/10-ways-to-generate-a-random-password-from-the-command-line/
+# expression possibles values are in man tr
+#		class examples : __generate_password 8 "[:alnum:]"
+__generate_password() {
+	local __length="$1"
+	local __expression="$2"
+	[ "${__length}" = "" ] && __length=8
+	[ "${__expression}" = "" ] && __expression="_A-Z-a-z-0-9"
+	LC_CTYPE=C tr -dc  "${__expression}" < /dev/urandom | fold -w${__length} | head -n1;
+}
+
 # Try to sudo - if not exec without sudo
 # On some systems, sudo do not exist, and we may already exec cmd as root
 #		sample : __sudo_exec apt-get update
 __sudo_exec() {
-	type sudo &>/dev/null && \
-		sudo -E "$@" || \
+	if $(type sudo &>/dev/null); then
+		sudo -E "$@"
+	else
 		"$@"
+	fi
 }
 
 
@@ -872,10 +887,44 @@ __find_folder_up() {
 
 # NOTE : paths do not have to exist
 # if path are relative, they are resolved accordingly to current path
-# __is_logical_subpath /folder1 /folder1/folder2 ==> TRUE
-# __is_logical_subpath /folder /folder ==> FALSE
-# __is_logical_subpath /folder /folder/ ==> FALSE
-# __is_logical_subpath /folder /folder/file ==> TRUE
+# __is_logical_equalpath / / ==> TRUE
+# __is_logical_equalpath / /foo ==> FALSE
+# __is_logical_equalpath /foo1 /foo1/foo2 ==> FALSE
+# __is_logical_equalpath /foo /foo ==> TRUE
+# __is_logical_equalpath /foo /foo/ ==> FALSE
+# __is_logical_equalpath /foo/ /foo ==> FALSE
+# __is_logical_equalpath /foo/ /foo/ ==> TRUE
+# __is_logical_equalpath /foo /foo/file ==> FALSE
+__is_logical_equalpath() {
+	local _path1="$1"
+	local _path2="$2"
+
+	local _result
+
+	if [ "$_path1" = "$_path2" ]; then
+		_result="TRUE"
+	else
+		_path1="$(__rel_to_abs_path "$_path1")"
+		_path2="$(__rel_to_abs_path "$_path2")"
+		if [ "${_path1}" = "${_path2}" ]; then
+			_result="TRUE"
+		else
+			_result="FALSE"
+		fi
+	fi
+	echo "$_result"
+}
+
+# NOTE : paths do not have to exist
+# if path are relative, they are resolved accordingly to current path
+# __is_logical_subpath / / ==> FALSE
+# __is_logical_subpath / /foo ==> TRUE
+# __is_logical_subpath /foo1 /foo1/foo2 ==> TRUE
+# __is_logical_subpath /foo /foo ==> FALSE
+# __is_logical_subpath /foo /foo/ ==> TRUE
+# __is_logical_subpath /foo/ /foo ==> FALSE
+# __is_logical_subpath /foo/ /foo/ ==> FALSE
+# __is_logical_subpath /foo /foo/file ==> TRUE
 __is_logical_subpath() {
 	local _root="$1"
 	local _subpath="$2"
@@ -883,7 +932,11 @@ __is_logical_subpath() {
 	local _result
 
 	if [ "$_root" = "/" ]; then
-		_result="TRUE"
+		if [ "$_subpath" = "/" ]; then
+			_result="FALSE"
+		else
+			_result="TRUE"
+		fi
 	else
 		_root="$(__rel_to_abs_path "$_root")"
 		_subpath="$(__rel_to_abs_path "$_subpath")"
@@ -891,7 +944,7 @@ __is_logical_subpath() {
 			_result="FALSE"
 		else
 			if [ "${_subpath}" = "${_root}/" ]; then
-				_result="FALSE"
+				_result="TRUE"
 			else
 				if [ ! "${_subpath##$_root/}" = "$_subpath" ]; then
 					_result="TRUE"

@@ -262,7 +262,7 @@ STELLA_BINARY_DEFAULT_LIB_IGNORED='^/System/Library|^/usr/lib|^/lib'
 
 
 # API ---------------------------------------------
-STELLA_API_COMMON_PUBLIC="is_logical_subpath sort_version transfer_stella filter_list uri_build_path uri_get_path uri_parse find_folder_up get_active_path uncompress daemonize rel_to_abs_path is_abs argparse get_filename_from_string \
+STELLA_API_COMMON_PUBLIC="is_logical_equalpath is_logical_subpath sort_version transfer_stella filter_list uri_build_path uri_get_path uri_parse find_folder_up get_active_path uncompress daemonize rel_to_abs_path is_abs argparse get_filename_from_string \
 get_resource delete_resource update_resource revert_resource download_uncompress copy_folder_content_into del_folder \
 get_key add_key del_key mercurial_project_version git_project_version get_stella_version \
 make_sevenzip_sfx_bin make_targz_sfx_shell compress trim transfer_stella transfer_folder_rsync transfer_file_rsync"
@@ -271,12 +271,14 @@ STELLA_API_APP_PUBLIC="transfer_app get_app_property link_app get_data get_asset
 STELLA_API_FEATURE_PUBLIC="feature_add_repo feature_info list_feature_version feature_remove feature_catalog_info feature_install feature_install_list feature_init list_active_features feature_reinit_installed feature_inspect"
 STELLA_API_BINARY_PUBLIC="tweak_linked_lib get_rpath add_rpath check_rpath check_binary_file tweak_binary_file"
 STELLA_API_BUILD_PUBLIC="toolset_info set_toolset start_build_session set_build_mode auto_build"
-STELLA_API_PLATFORM_PUBLIC="yum_proxy_unset yum_proxy_set yum_add_extra_repositories python_get_libs python_get_includes python_get_ldflags python_get_clags python_get_prefix python_major_version python_short_version sys_install sys_remove require"
+STELLA_API_PLATFORM_PUBLIC="python_get_site_packages_global_path python_get_site_packages_user_path yum_proxy_unset yum_proxy_set yum_add_extra_repositories python_get_libs python_get_includes python_get_ldflags python_get_clags python_get_prefix python_major_version python_short_version sys_install sys_remove require"
 STELLA_API_NETWORK_PUBLIC="ssh_execute get_ip_from_hostname get_ip_from_interface proxy_tunnel enable_proxy disable_proxy no_proxy_for register_proxy register_no_proxy"
 STELLA_API_BOOT_PUBLIC="boot_stella_shell boot_stella_cmd boot_stella_script boot_app_shell boot_app_cmd boot_app_script"
 STELLA_API_LOG_PUBLIC="log set_log_level set_log_state"
 
-# NOTE : get_key do not return values, so if we put it inside return function list, it will be broken
+# STELLA_API_RETURN_FUNCTION contains function which return a value with 'return' instruction. This value will be 'echo' when calling this function through api
+# NOTE : functions that do not 'return' nor 'echo' values, could be broken
+# TODO : this list contains function which do not use 'return' instruction --> have to clean it
 STELLA_API_RETURN_FUNCTION="sort_version uri_build_path uri_get_path get_ip_from_hostname get_ip_from_interface filter_list log find_folder_up python_major_version python_short_version list_feature_version get_active_path rel_to_abs_path trim is_abs mercurial_project_version git_project_version get_stella_version list_active_features get_filename_from_string"
 STELLA_API=__api_proxy
 

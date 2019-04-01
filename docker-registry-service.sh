@@ -35,10 +35,11 @@ function usage() {
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running backend service"
   echo "L     destroy [--storage] : destroy service"
-  echo "L     set [--registry=<schema://host:port>] : set a local docker daemon to use the registry as insecure registry. Meant to set any node which runs a docker daemon"
+  echo "L     set [--registry=<schema://host:port>] [--insecure]: set a local docker daemon to use the registry as insecure registry. Meant to set any node which runs a docker daemon"
   echo "o-- options :"
   echo "L     --frontport : web ui frontend port"
   echo "L     --backport : registry port"
+  echo "L     --insecure : registry is not secured"
   echo "L     --registry : uri of the backend registry to set on the local docker daemon"
   echo "L     --debug : active some debug trace"
 }
@@ -53,6 +54,7 @@ BACKPORT='$DEFAULT_BACKEND_PORT' 						'' 			'port'				s 			0			''		  Service re
 FRONTPORT='$DEFAULT_FRONTEND_PORT' 						'' 			'port'				s 			0			''		  Service registry frontend port.
 REGISTRY='${DEFAULT_REGISTRY_URI}' 						'' 			'schema://host:port'				s 			0			''		  Service registry endpoint.
 DEBUG=''            'd'    		''            		b     		0     		'1'           		Active some debug trace.
+INSECURE=''            'd'    		''            		b     		0     		'1'           		Active some debug trace.
 STORAGE=''            ''    		''            		b     		0     		'1'           		Delete storage path
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
@@ -162,8 +164,10 @@ fi
 if [ "$ACTION" = "set" ]; then
   echo " ** Run this command only on a host of a docker daemon"
   __test_sudo
-  echo " ** Setting $REGISTRY_SHORT an authorized insecure registry"
-  __set_docker_daemon_options '."insecure-registries" = [ "'$REGISTRY_SHORT'" ]'
-  __get_docker_daemon_options '."insecure-registries"'
-  echo " ** Please restart docker daemon"
+  if [ "$INSECURE" = "1" ]; then
+    echo " ** Setting $REGISTRY_SHORT an authorized insecure registry"
+    __set_docker_daemon_options '."insecure-registries" = [ "'$REGISTRY_SHORT'" ]'
+    __get_docker_daemon_options '."insecure-registries"'
+    echo " ** Please restart docker daemon"
+  fi
 fi

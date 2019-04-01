@@ -4,21 +4,24 @@ _pkgconfig_INCLUDED_=1
 # http://www.linuxfromscratch.org/lfs/view/development/chapter06/pkg-config.html
 # https://github.com/Homebrew/homebrew/blob/master/Library/Formula/pkg-config.rb
 
+
 feature_pkgconfig() {
 	FEAT_NAME=pkgconfig
-	FEAT_LIST_SCHEMA="0_29:source"
+	FEAT_LIST_SCHEMA="0_29_2:source"
 	FEAT_DEFAULT_ARCH=
 	FEAT_DEFAULT_FLAVOUR="source"
 }
 
-feature_pkgconfig_0_29() {
-	FEAT_VERSION=0_29
+
+
+feature_pkgconfig_0_29_2() {
+	FEAT_VERSION=0_29_2
 
 	FEAT_SOURCE_DEPENDENCIES=
 	FEAT_BINARY_DEPENDENCIES=
 
-	FEAT_SOURCE_URL=http://pkgconfig.freedesktop.org/releases/pkg-config-0.29.tar.gz
-	FEAT_SOURCE_URL_FILENAME=fpkg-config-0.29.tar.gz
+	FEAT_SOURCE_URL=https://pkg-config.freedesktop.org/releases/pkg-config-0.29.2.tar.gz
+	FEAT_SOURCE_URL_FILENAME=pkg-config-0.29.2.tar.gz
 	FEAT_SOURCE_URL_PROTOCOL=HTTP_ZIP
 
 	FEAT_BINARY_URL=
@@ -33,6 +36,7 @@ feature_pkgconfig_0_29() {
 	FEAT_SEARCH_PATH="$FEAT_INSTALL_ROOT"/bin
 
 }
+
 
 # add aclocal macro
 #http://askubuntu.com/questions/567813/automake-does-not-find-pkg-config-macros
