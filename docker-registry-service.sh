@@ -35,18 +35,17 @@ function usage() {
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running backend service"
   echo "L     destroy [--storage] : destroy service"
-  echo "L     insecure [--registry=<schema://host:port>] [--secure]: set a local docker daemon to use the registry as an insecure registry . Meant to set any node which runs a docker daemon"
+  echo "L     insecure [--registry=<schema://host:port>] : set a local docker daemon to use the registry as an insecure registry . Meant to set any node which runs a docker daemon"
   echo "o-- options :"
   echo "L     --frontport : web ui frontend port"
   echo "L     --backport : registry port"
-  echo "L     --secure : registry is secured or insecure (insecure by default)"
   echo "L     --registry : uri of the backend registry to set on the local docker daemon"
   echo "L     --debug : active some debug trace"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy set'
+ACTION=											'' 			a				'create start stop status shell destroy insecure'
 "
 OPTIONS="
 REGISTRYPATH='$DEFAULT_REGISTRY_STORAGE_PATH' 						'' 			'path'				s 			0			''		  Storage path.
