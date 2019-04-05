@@ -108,12 +108,19 @@ DEFAULT_DOCKER_IMAGE_VERSION_proxy="1.12.2-alpine"
 DEFAULT_DOCKER_IMAGE_proxygen="studioetrange/docker-consul-template"
 DEFAULT_DOCKER_IMAGE_VERSION_proxygen="0.19.4"
 
+# NOTE there might be problems between registrator v7 and if consul version > 1.1.0
+# for SERVICE_CHECK_SCRIPT registrator feature
+# https://github.com/gliderlabs/registrator/issues/637
+# https://github.com/gliderlabs/registrator/pull/643/commits/16d6db15ba603e2d880252e848d77661d5453a85
+
+
+
 # USAGE --------------------------------------
 function usage() {
   echo "USAGE :"
   echo "Provide an auto-configured reverse proxy for deployed docker."
   echo "NOTE : require docker on your system"
-  echo "NOTE : It use registrator, nginx, and consul-template. It needs consul. You may deploy consul with consul-service"
+  echo "NOTE : It use registrator, nginx (as Proxy), and consul-template (as Proxygen). It needs consul. You may deploy consul with consul-service"
   echo "----------------"
   echo "o-- command :"
   echo "L     create <proxy> [--version=<version>] [--consul=<uri>] [--proxy=<port>] [--template=<path>] [-- additional docker run options] : create & launch proxy/proxygen service (must be use once before starting/stopping service). Proxy and Proxy-gen are created together."
@@ -129,7 +136,7 @@ function usage() {
   echo "L     --serviceip : IP on which detected services by registrator are considered exposed. (Use serviceip OR serviceif. serviceif have priority)"
   echo "L     --serviceif : Network Interface on which detected services by registrator are considered exposed. (Use serviceip OR serviceif. serviceif have priority)"
   echo "L     --template : path to a template file for proxy-gen (ex: nginx.ctml)"
-  echo "L     --version : consul image version"
+  echo "L     --version : item version"
   echo "L     --debug : active some debug trace"
 }
 
