@@ -19,6 +19,6 @@ STELLA_APP_PROPERTIES_FILENAME="calibre-service.properties"
 #       alternative For calibre content server (1) : use https://github.com/aptalca/docker-rdp-calibre (but we do not need rdp over calibre gui)
 
 # To get calibre web (2) WORK on  https://github.com/Technosoft2000/docker-calibre-web OR https://github.com/linuxserver/docker-calibre-web
-#       alternative for calibre web (2) : https://github.com/janeczku/calibre-web/
+#      original calibre web (2) : https://github.com/janeczku/calibre-web/
 
 # optional : unlock ebook tools : https://github.com/apprenticeharper/DeDRM_tools
