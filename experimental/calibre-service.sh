@@ -24,4 +24,6 @@ STELLA_APP_PROPERTIES_FILENAME="calibre-service.properties"
 #       linuxserver/calibre-web : Cannot convert between ebook formats.
 
 
-# optional : unlock ebook tools : https://github.com/apprenticeharper/DeDRM_tools
+# optional : 
+#         unlock ebook tools : https://github.com/apprenticeharper/DeDRM_tools
+#         shells scripts to organize collection : https://github.com/na--/ebook-tools
