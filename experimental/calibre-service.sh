@@ -19,6 +19,9 @@ STELLA_APP_PROPERTIES_FILENAME="calibre-service.properties"
 #       alternative For calibre content server (1) : use https://github.com/aptalca/docker-rdp-calibre (but we do not need rdp over calibre gui)
 
 # To get calibre web (2) WORK on  https://github.com/Technosoft2000/docker-calibre-web OR https://github.com/linuxserver/docker-calibre-web
-#      original calibre web (2) : https://github.com/janeczku/calibre-web/
+#       original calibre web (2) : https://github.com/janeczku/calibre-web/
+#       technosoft2000/calibre-web : If you want the option to convert/download ebooks in multiple formats, use this image as it includes Calibre's ebook-convert binary. The "path to convertertool" should be set to /opt/calibre/ebook-convert.
+#       linuxserver/calibre-web : Cannot convert between ebook formats.
+
 
 # optional : unlock ebook tools : https://github.com/apprenticeharper/DeDRM_tools
