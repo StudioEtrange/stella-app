@@ -39,7 +39,7 @@ __sudo_ssh_begin_session() {
 	local _uri="$1"
 	__ssh_execute "$_uri"  '_save_tty=$(stty -g);stty raw -echo; echo "Defaults !tty_tickets" | sudo -Es tee /etc/sudoers.d/rsync_temp_hack_stella; sudo -v;stty ${_save_tty};' 'SHARED'
 	# NOTE : needs time before modification is used by sshd
-	sleep 2
+	sleep 3
 }
 
 __sudo_ssh_end_session() {
@@ -1732,39 +1732,186 @@ __git_project_version() {
 
 
 # INI FILE MANAGEMENT---------------------------------------------------
+# eval a specific key from a specific SECTION
+# OPT :
+# PREFIX add section name as prefix for variable name
 __get_key() {
 	local _FILE=$1
 	local _SECTION=$2
 	local _KEY=$3
 	local _OPT=$4
 
-	_opt_section_prefix=OFF
-	for o in $_OPT; do
-		[ "$o" = "PREFIX" ] && _opt_section_prefix=ON
-	done
-
-	# trim whitespace
-	_SECTION=$(__trim "$_SECTION")
-
-	local _win_endline=$'s/\r//g'
-	local _exp1="/\[$_SECTION\]/,/\[.*\]/p"
-	local _exp2="/^$_KEY=/{print \$2}"
-
-	if [ -f "$_FILE" ]; then
-		if [ "$_opt_section_prefix" = "ON" ]; then
-			eval "$_SECTION"_"$_KEY"='$(sed -n -e "$_win_endline" -e "$_exp1" "$_FILE" | awk -F= "$_exp2" )'
-		else
-			eval $_KEY='$(sed -n -e "$_win_endline" -e "$_exp1" "$_FILE" | awk -F= "$_exp2" )'
-		fi
-	else
-		if [ "$_opt_section_prefix" = "ON" ]; then
-			eval "$_SECTION"_"$_KEY"=
-		else
-			eval $_KEY=
-		fi
-	fi
+	__get_keys "${_FILE}" "ASSIGN EVAL ${_OPT} KEY ${_KEY} SECTION ${_SECTION}"
+	#
+	# _opt_section_prefix=OFF
+	# for o in $_OPT; do
+	# 	[ "$o" = "PREFIX" ] && _opt_section_prefix=ON
+	# done
+	#
+	# # trim whitespace
+	# _SECTION=$(__trim "$_SECTION")
+	#
+	# local _win_endline=$'s/\r//g'
+	# local _exp1="/\[$_SECTION\]/,/\[.*\]/p"
+	# local _exp2="/^$_KEY=/{print \$2}"
+	#
+	# if [ -f "$_FILE" ]; then
+	# 	if [ "$_opt_section_prefix" = "ON" ]; then
+	# 		eval "$_SECTION"_"$_KEY"='$(sed -n -e "$_win_endline" -e "$_exp1" "$_FILE" | awk -F= "$_exp2" )'
+	# 	else
+	# 		eval $_KEY='$(sed -n -e "$_win_endline" -e "$_exp1" "$_FILE" | awk -F= "$_exp2" )'
+	# 	fi
+	# else
+	# 	if [ "$_opt_section_prefix" = "ON" ]; then
+	# 		eval "$_SECTION"_"$_KEY"=
+	# 	else
+	# 		eval $_KEY=
+	# 	fi
+	# fi
 
 }
+
+
+
+
+# get all keys from an ini file
+# or get all keys from a specific section
+# or get a specific key (which may be from a specitic section or not)
+# OPTION
+# ASSIGN|PRINT will assign to each key with its own value OR will only print values (PRINT is default mode)
+# EVAL will eval each key value before AFFECT it or PRINT it
+# PREFIX will add section name to key name
+# KEY | SECTION : will look up for a KEY | SECTION
+# TEST SAMPLE :
+# a1 = 12
+# abcd=22
+# az = 4
+# abab=AA
+# u =
+# foo=3=4=
+# A=3
+# bar_A=1
+# [bar]
+# A=2
+# zer=2
+# S="a b c d AB# ED="
+# H1=$HOME $USER
+# H2="$HOME"
+# H3='$HOME $USER'
+__get_keys() {
+	local _FILE=$1
+	local _OPT=$2
+
+	_opt_section_prefix=OFF
+	_flag_section=
+	_opt_section=
+	_flag_key=
+	_opt_key=
+	_opt_eval=OFF
+  _opt_assign=OFF
+	for o in $_OPT; do
+		[ "$o" = "PREFIX" ] && _opt_section_prefix=ON
+		[ "$o" = "EVAL" ] && _opt_eval=ON
+    [ "$o" = "ASSIGN" ] && _opt_assign=ON
+    [ "$o" = "PRINT" ] && _opt_assign=OFF
+		[ "$_flag_section" = "ON" ] && _opt_section="${o}" && _flag_section=OFF
+		[ "$o" = "SECTION" ] && _flag_section=ON
+		[ "$_flag_key" = "ON" ] && _opt_key="${o}" && _flag_key=OFF
+		[ "$o" = "KEY" ] && _flag_key=ON
+	done
+
+  # escape regexp special characters
+	# http://stackoverflow.com/questions/407523/escape-a-string-for-a-sed-replace-pattern
+  # TODO do we need this ?
+	#_opt_section=$(echo ${_opt_section} | sed -e 's/[]\/$*.^|[]/\\&/g')
+	#_opt_key=$(echo "$_opt_key" | sed -e 's/\\/\\\\/g')
+
+  # unset some specific asked key
+	if [ "${_opt_assign}" = "ON" ]; then
+		if [ ! "${_opt_key}" = "" ]; then
+			if [ "${_opt_section_prefix}" = "ON" ]; then
+				if [ ! "${_opt_section}" = "" ]; then
+						eval "${_opt_section}"_"${_opt_key}"=
+				else
+						eval "${_opt_key}"=
+				fi
+			else
+				eval "${_opt_key}"=
+			fi
+		fi
+	fi
+	[ ! -f "${_FILE}" ] && return
+
+
+  # NOTE read_ini : Dots are converted to underscores in all variable names.
+  read_ini ${_FILE} ${_opt_section} --prefix "INTERNAL__INI" --booleans 0
+
+
+  _list_var="${INTERNAL__INI__ALL_VARS}"
+  for s in ${INTERNAL__INI__ALL_SECTIONS}; do
+    _t="INTERNAL__INI__${s}__"
+    # parse all variable of current section
+    for v in $(compgen -v "${_t}"); do
+      key="${v/$_t/}"
+      if [ ! "${_opt_key}" = "" ]; then
+        [ ! "$key" = "${_opt_key}" ] && continue
+      fi
+      [ "$_opt_section_prefix" = "ON" ] && key="${s}_${key}"
+      if [ "$_opt_assign" = "ON" ]; then
+        if [ "$_opt_eval" = "ON" ]; then
+          eval $(echo $key=\"${!v}\")
+        else
+          # NOTE affectation to variable name but without value evaluation
+          eval "$key='$(echo "${!v}")'"
+        fi
+      else
+        if [ "$_opt_eval" = "ON" ]; then
+          # NOTE : just print out evaluated variable value
+          eval echo \"${!v}\"
+        else
+          # NOTE : just print out variable value
+          eval "echo '$(echo "${!v}")'"
+        fi
+      fi
+      # remove already parsed variable
+      _list_var=${_list_var/$v/}
+    done
+  done
+
+  # parse not already parsed variable, the ones wich are not inside section
+  # these variable override already defined variable
+  # BAR_A=1
+  # [BAR]
+  # A=2
+  # ==> if PREFIX mode is active then BAR_A will be 1
+  for v in ${_list_var}; do
+    key="${v/INTERNAL__INI__/}"
+    if [ ! "${_opt_key}" = "" ]; then
+      [ ! "$key" = "${_opt_key}" ] && continue
+    fi
+    if [ "$_opt_assign" = "ON" ]; then
+      if [ "$_opt_eval" = "ON" ]; then
+        eval $(echo $key=\"${!v}\")
+      else
+        # NOTE affectation to variable name but without value evaluation
+        eval "$key='$(echo "${!v}")'"
+      fi
+    else
+      if [ "$_opt_eval" = "ON" ]; then
+        # NOTE : just print out evaluated variable value
+        eval echo \"${!v}\"
+      else
+        # NOTE : just print out variable value
+        eval "echo '$(echo "${!v}")'"
+      fi
+    fi
+  done
+
+  # delete all read_ini initialized variable
+  unset "${!INTERNAL__INI__@}"
+
+}
+
 
 __del_key() {
 	local _FILE=$1
@@ -1806,7 +1953,7 @@ __ini_file() {
 	tp=$(mktmp)
 
 	awk -F= -v mode="$_MODE" -v val="$_VALUE" '
-	# Clear the flag
+	# Clear the flags
 	BEGIN {
 		processing = 0;
 		skip = 0;
@@ -1866,14 +2013,16 @@ __ini_file() {
 			if(!processing) print "['$_SECTION_NAME']"
 			if("'$_KEY'" != "") {
 				print "'$_KEY'="val;
-		   	}
+			}
 		}
 
 	}
 
-	' "$_FILE" > $tp
-
-	mv -f $tp "$_FILE"
+	' "${_FILE}" > $tp
+	cat "${tp}" > "${_FILE}"
+	rm -f "${tp}"
+	# mv change permission on file
+	#mv -f $tp "$_FILE"
 }
 
 

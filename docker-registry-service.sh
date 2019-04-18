@@ -29,31 +29,33 @@ function usage() {
   echo "NOTE : can set a docker daemon with this registry as insecure registries."
   echo "----------------"
   echo "o-- command :"
-  echo "L     create [--registrypath=<path>] [--frontport=<port>] [--backport=<port>] : create & launch service (must be use once before starting/stopping service)."
-  echo "L     start : start service"
-  echo "L     stop : stop service"
-  echo "L     status : give service status info"
-  echo "L     shell : launch a shell inside running backend service"
-  echo "L     destroy [--storage] : destroy service"
-  echo "L     insecure [--registry=<schema://host:port>] : set a local docker daemon to use the registry as an insecure registry . Meant to set any node which runs a docker daemon"
+  echo "L     create [--registrypath=<path>] [--frontport=<port>] [--backport=<port>] [--name=<name>] : create & launch service (must be use once before starting/stopping service)."
+  echo "L     start [--name=<name>] : start service"
+  echo "L     stop [--name=<name>] : stop service"
+  echo "L     status [--name=<name>] : give service status info"
+  echo "L     shell [--name=<name>] : launch a shell inside running backend service"
+  echo "L     destroy [--storage] [--name=<name>] : destroy service"
+  echo "L     insecure|secure [--registry=<schema://host:port>] : set a local docker daemon to use the registry as an insecure registry. OR remove this registry from insecure registry list."
   echo "o-- options :"
   echo "L     --frontport : web ui frontend port"
   echo "L     --backport : registry port"
   echo "L     --registry : uri of the backend registry to set on the local docker daemon"
   echo "L     --debug : active some debug trace"
+  echo "L     --name : registry name"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy insecure'
+ACTION=											'' 			a				'create start stop status shell destroy insecure secure'
 "
 OPTIONS="
-REGISTRYPATH='$DEFAULT_REGISTRY_STORAGE_PATH' 						'' 			'path'				s 			0			''		  Storage path.
-BACKPORT='$DEFAULT_BACKEND_PORT' 						'' 			'port'				s 			0			''		  Service registry backend port.
-FRONTPORT='$DEFAULT_FRONTEND_PORT' 						'' 			'port'				s 			0			''		  Service registry frontend port.
+REGISTRYPATH='${DEFAULT_REGISTRY_STORAGE_PATH}' 						'' 			'path'				s 			0			''		  Storage path.
+BACKPORT='${DEFAULT_BACKEND_PORT}' 						'' 			'port'				s 			0			''		  Service registry backend port.
+FRONTPORT='${DEFAULT_FRONTEND_PORT}' 						'' 			'port'				s 			0			''		  Service registry frontend port.
 REGISTRY='${DEFAULT_REGISTRY_URI}' 						'' 			'schema://host:port'				s 			0			''		  Service registry endpoint.
 DEBUG=''            'd'    		''            		b     		0     		'1'           		Active some debug trace.
 STORAGE=''            ''    		''            		b     		0     		'1'           		Delete storage path
+NAME='' 						'n' 			'name'				s 			0			''		  A name.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
@@ -80,10 +82,11 @@ __set_docker_daemon_options() {
 	if [ ! -s "/etc/docker/daemon.json" ]; then
 			echo '{}' > /etc/docker/daemon.json
 	fi
-	cat /etc/docker/daemon.json
   _tmp="$(mktemp)"
-  jq "$@" /etc/docker/daemon.json > "$_tmp"
-  mv -f "$_tmp" /etc/docker/daemon.json && rm -f "$_tmp"
+  jq "$@" /etc/docker/daemon.json > "${_tmp}"
+  cat "${_tmp}" > /etc/docker/daemon.json
+  rm -f "${_tmp}"
+  #mv -f "$_tmp" /etc/docker/daemon.json && rm -f "$_tmp"
 }
 
 __get_docker_daemon_options() {
@@ -94,13 +97,34 @@ __get_docker_daemon_options() {
 }
 
 
+__registry_name_validate() {
+	valid='a-zA-Z_'
+	if [[ ! "${1}" =~ [^$valid] ]]; then
+		# valide
+		echo "1"
+	else
+		echo "0"
+	fi
+}
+
+
 # ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
+if [ ! "$NAME" = "" ]; then
+  if [ "$(__registry_name_validate ${NAME})" = "0" ]; then
+    echo "** ERROR : invalid registry name. (Valid characters : a-zA-Z_)"
+    exit 1
+  fi
+  DEFAULT_REGISTRY_STORAGE_PATH="${DEFAULT_REGISTRY_STORAGE_PATH}_${NAME}"
+  DEFAULT_SERVICE_NAME="${DEFAULT_SERVICE_NAME}_${NAME}"
+fi
+
 SERVICE_NAME="$DEFAULT_SERVICE_NAME"
 COMPOSE_FILE_ROOT="$DEFAULT_COMPOSE_FILE_ROOT"
 COMPOSE_FILE="$DEFAULT_COMPOSE_FILE"
 DOCKER_COMPOSE_OPT="--project-name $SERVICE_NAME"
 # NOTE : to much verbose
 #[ "$DEBUG" = "1" ] && DOCKER_COMPOSE_OPT="$DOCKER_COMPOSE_OPT --verbose"
+
 
 [ "$REGISTRYPATH" = "" ] && REGISTRY_STORAGE_PATH="$DEFAULT_REGISTRY_STORAGE_PATH" || REGISTRY_STORAGE_PATH="$REGISTRYPATH"
 export REGISTRY_STORAGE_PATH="$REGISTRY_STORAGE_PATH"
@@ -160,10 +184,17 @@ fi
 
 
 if [ "$ACTION" = "insecure" ]; then
-  echo " ** Run this command only on a host of a docker daemon"
   __test_sudo
   echo " ** Setting $REGISTRY_SHORT an authorized insecure registry"
-  __set_docker_daemon_options '."insecure-registries" = [ "'$REGISTRY_SHORT'" ]'
-  __get_docker_daemon_options '."insecure-registries"'
+  __set_docker_daemon_options '."insecure-registries" += [ "'$REGISTRY_SHORT'" ]'
+  __get_docker_daemon_options ''
+  echo " ** Please restart docker daemon"
+fi
+
+if [ "$ACTION" = "secure" ]; then
+  __test_sudo
+  echo " ** Setting $REGISTRY_SHORT an authorized insecure registry"
+  __set_docker_daemon_options '."insecure-registries" -= [ "'$REGISTRY_SHORT'" ]'
+  __get_docker_daemon_options ''
   echo " ** Please restart docker daemon"
 fi
