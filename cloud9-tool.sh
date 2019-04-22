@@ -92,10 +92,10 @@ __local_bindfs_volume_create() {
 }
 
 __require_bindfs_docker_plugin() {
-  __log_run docker plugin inspect lebokus/bindfs 1>/dev/null 2>&1
+  __log_run docker plugin inspect studioetrange/bindfs:1.0 1>/dev/null 2>&1
   if [ "$?" = "1" ]; then
     echo "** Install docker volume plugin bindfs"
-    __log_run docker plugin install lebokus/bindfs
+    __log_run docker plugin install studioetrange/bindfs:1.0
   fi
 }
 

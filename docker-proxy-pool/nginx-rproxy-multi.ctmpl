@@ -4,12 +4,86 @@
 
 # NOTE
 #     Each service which have to be reverse proxy must have these label : (Where XXXX is the internal service port)
-#             SERVICE_XXXX_NAME=global_name     SERVICE_XXXX_TAG=rproxy,rproxy-subpath,myservice   or SERVICE_XXXX_TAG=rproxy,rproxy-raw,/path
-#     There is two modes
-#         rproxy-subpath : use the servicce name and the value in tag as subpath (ie : /global_name/myservice)
-#         rproxy-raw : use the tag value as subpath (ie : /path)
+#             SERVICE_XXXX_NAME=global_name
+#                 SERVICE_XXXX_TAG=rproxy,rproxy-subpath,myservice or
+#                 SERVICE_XXXX_TAG=rproxy,rproxy-samepath,myservice or
+#                 SERVICE_XXXX_TAG=rproxy,rproxy-raw,/path or
+#                 SERVICE_XXXX_TAG=rproxy,rproxy-redirect,myservice
+#     Available modes
+#         rproxy-subpath : /global_name/myservice ==> requests ares proxyfied to the root of the service endpoint
+#         rproxy-samepath : /global_name/myservice ==> requests ares proxyfied to /global_name/myservice of the service endpoint
+#         rproxy-raw : ==> /raw ===> requests ares proxyfied to the root of the service endpoint
+#         rproxy-redirect : /global_name/myservice ==> HTTP redirect to the root of the service endpoint
 
 # NOTE : we replace each ":" in ID value and each "/" and  with "_" in tag values to build an unique service ID
+
+
+{{range services}}
+  # Services with name {{ .Name }}
+  {{ if .Tags | contains "rproxy" }}
+    {{range $t, $s := service .Name|byTag}}
+
+      # rproxy-subpath mode : reverse proxy with subpath with service name as root
+      {{if (eq $t "rproxy-subpath")}}
+        {{range $s}}
+          {{ scratch.Set .ID "SUB" }}
+        {{end}}
+      {{end}}
+
+      # rproxy-subpath mode : reverse proxy with subpath with service name as root
+      {{if (eq $t "rproxy-samepath")}}
+        {{range $s}}
+          {{ scratch.Set .ID "SAME" }}
+        {{end}}
+      {{end}}
+
+      # rproxy-raw mode : reverse proxy with path determined by tag value
+      {{if (eq $t "rproxy-raw")}}
+        {{range $s}}
+          {{ scratch.Set .ID "RAW" }}
+        {{end}}
+      {{end}}
+
+      # rproxy-redirect mode : reverse proxy redirect to original service endpoint
+      {{if (eq $t "rproxy-redirect")}}
+        {{range $s}}
+          {{ scratch.Set .ID "REDIRECT" }}
+        {{end}}
+      {{end}}
+
+    {{end}}
+  {{end}}
+{{end}}
+
+
+map $uri $redirect_uri {
+
+  {{range services}}
+    # Services with name {{ .Name }}
+    {{ if .Tags | contains "rproxy" }}
+      {{range $t, $s := service .Name|byTag}}
+        {{if (ne $t "rproxy")}}
+        {{if (ne $t "rproxy-subpath")}}
+        {{if (ne $t "rproxy-samepath")}}
+        {{if (ne $t "rproxy-raw")}}
+        {{if (ne $t "rproxy-redirect")}}
+          {{range $s}}
+            # ID service : {{ .ID }} -- Service name {{ .Name }} with tag {{$t}} will be behind the reverse proxy
+            {{ if (eq (scratch.Get .ID) "REDIRECT") }}
+              ~^/{{ .Name }}/{{$t}}(.*) http://{{ .Address }}:{{ .Port }}$1;
+            {{end}}
+          {{end}}
+        {{end}}
+        {{end}}
+        {{end}}
+        {{end}}
+        {{end}}
+      {{end}}
+    {{end}}
+  {{end}}
+
+}
+
 
 {{range services}}
   # Services with name {{ .Name }}
@@ -17,14 +91,34 @@
     {{range $t, $s := service .Name|byTag}}
       {{if (ne $t "rproxy")}}
       {{if (ne $t "rproxy-subpath")}}
+      {{if (ne $t "rproxy-samepath")}}
       {{if (ne $t "rproxy-raw")}}
+      {{if (ne $t "rproxy-redirect")}}
         {{range $s}}
+
           # ID service : {{ .ID }} -- Service name {{ .Name }} with tag {{$t}} will be behind the reverse proxy
-          #upstream {{ .Name }}-{{ $t }}
-          upstream {{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }} {
-            server {{ .Address }}:{{ .Port }};
-          }
+          {{ if (eq (scratch.Get .ID) "SUB") }}
+            #upstream {{ .Name }}-{{ $t }}
+            upstream {{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }} {
+              server {{ .Address }}:{{ .Port }};
+            }
+          {{end}}
+          {{ if (eq (scratch.Get .ID) "SAME") }}
+            #upstream {{ .Name }}-{{ $t }}
+            upstream {{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }} {
+              server {{ .Address }}:{{ .Port }};
+            }
+          {{end}}
+          {{ if (eq (scratch.Get .ID) "RAW") }}
+            #upstream {{ .Name }}-{{ $t }}
+            upstream {{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }} {
+              server {{ .Address }}:{{ .Port }};
+            }
+          {{end}}
+
         {{end}}
+      {{end}}
+      {{end}}
       {{end}}
       {{end}}
       {{end}}
@@ -42,28 +136,19 @@ map $http_upgrade $connection_upgrade {
 server {
 
   client_max_body_size 0;
-{{range services}}
-  # Services with name {{ .Name }}
-  {{ if .Tags | contains "rproxy" }}
-    {{range $t, $s := service .Name|byTag}}
 
-      # rproxy-subpath mode : reverse proxy with subpath with service name as root
-      {{if (eq $t "rproxy-subpath")}}
-        {{range $s}}
-          {{ scratch.Set .ID "SUB" }}
-        {{end}}
-      {{end}}
+  location / {
+      try_files $uri $uri/ @redirect-map;
+  }
 
-      # rproxy-raw mode : reverse proxy with path determined by tag value
-      {{if (eq $t "rproxy-raw")}}
-        {{range $s}}
-          {{ scratch.Set .ID "RAW" }}
-        {{end}}
-      {{end}}
+  location @redirect-map {
+      if ($redirect_uri) {  # redirect if the variable is defined
+          return 302 $redirect_uri;
+      }
+  }
 
-    {{end}}
-  {{end}}
-{{end}}
+
+
 
 {{range services}}
   # Services with name {{ .Name }}
@@ -73,6 +158,8 @@ server {
       {{if (ne $t "rproxy")}}
       {{if (ne $t "rproxy-raw")}}
       {{if (ne $t "rproxy-subpath")}}
+      {{if (ne $t "rproxy-samepath")}}
+      {{if (ne $t "rproxy-redirect")}}
         {{range $s}}
 
           # rproxy-subpath mode : reverse proxy with subpath with service name as root
@@ -84,6 +171,28 @@ server {
               proxy_set_header Host $host;
               proxy_set_header X-Real-IP $remote_addr;
               proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+              proxy_redirect http://{{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }}/ $scheme://$host/{{ .Name }}/{{$t}}/;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection $connection_upgrade;
+              proxy_read_timeout 20d;
+              add_header Access-Control-Allow-Origin "*";
+              client_max_body_size 0;
+              proxy_max_temp_file_size 0;
+            }
+          {{end}}
+
+          # rproxy-samepath
+          {{ if (eq (scratch.Get .ID) "SAME") }}
+            # ID service : {{ .ID }} -- Service name {{ .Name }} with tag {{$t}} will be behind the reverse proxy
+            location /{{ .Name }}/{{$t}}/ {
+              #rewrite ^/{{ .Name }}/{{$t}}/(.*)$ /$1 break;
+              proxy_pass http://{{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }};
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
               proxy_redirect http://{{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }}/ $scheme://$host/{{ .Name }}/{{$t}}/;
               proxy_http_version 1.1;
               proxy_set_header Upgrade $http_upgrade;
@@ -104,6 +213,7 @@ server {
               proxy_set_header Host $host;
               proxy_set_header X-Real-IP $remote_addr;
               proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
               proxy_redirect http://{{ .ID | replaceAll ":" "_" }}_{{ .Name }}_{{ $t | replaceAll "/" "_" }}/ $scheme://$host{{$t}}/;
               proxy_http_version 1.1;
               proxy_set_header Upgrade $http_upgrade;
@@ -116,6 +226,8 @@ server {
           {{end}}
 
         {{end}}
+      {{end}}
+      {{end}}
       {{end}}
       {{end}}
       {{end}}

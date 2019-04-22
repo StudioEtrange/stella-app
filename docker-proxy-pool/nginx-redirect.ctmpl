@@ -3,6 +3,7 @@
 # https://github.com/hashicorp/consul-template/issues/200
 
 map $uri $redirect_uri {
+
 {{range services}}
   {{range $tag, $services := service .Name|byTag}}
     {{if (eq $tag "redirect")}}

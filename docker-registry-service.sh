@@ -19,8 +19,7 @@ DEFAULT_REGISTRY_URI="http://${STELLA_HOST_DEFAULT_IP}:${DEFAULT_BACKEND_PORT}"
 
 
 # DOCKER IMAGES INFO --------------------------------------
-DEFAULT_COMPOSE_FILE_ROOT="$STELLA_APP_ROOT/docker-registry-pool"
-DEFAULT_COMPOSE_FILE="$DEFAULT_COMPOSE_HOME/docker-compose.yml"
+DEFAULT_COMPOSE_FILE="$STELLA_APP_ROOT/docker-registry-pool/docker-compose.yml"
 
 # USAGE --------------------------------------
 function usage() {
@@ -29,12 +28,12 @@ function usage() {
   echo "NOTE : can set a docker daemon with this registry as insecure registries."
   echo "----------------"
   echo "o-- command :"
-  echo "L     create [--registrypath=<path>] [--frontport=<port>] [--backport=<port>] [--name=<name>] : create & launch service (must be use once before starting/stopping service)."
-  echo "L     start [--name=<name>] : start service"
-  echo "L     stop [--name=<name>] : stop service"
-  echo "L     status [--name=<name>] : give service status info"
-  echo "L     shell [--name=<name>] : launch a shell inside running backend service"
-  echo "L     destroy [--storage] [--name=<name>] : destroy service"
+  echo "L     create [--registrypath=<path>] [--frontport=<port>] [--backport=<port>] [--name=<name>] [--compose=<path>]: create & launch service (must be use once before starting/stopping service)."
+  echo "L     start [--name=<name>] [--compose=<path>] : start service"
+  echo "L     stop [--name=<name>] [--compose=<path>] : stop service"
+  echo "L     status [--name=<name>] [--compose=<path>] : give service status info"
+  echo "L     shell [--name=<name>] [--compose=<path>] : launch a shell inside running backend service"
+  echo "L     destroy [--storage] [--name=<name>] [--compose=<path>] : destroy service"
   echo "L     insecure|secure [--registry=<schema://host:port>] : set a local docker daemon to use the registry as an insecure registry. OR remove this registry from insecure registry list."
   echo "o-- options :"
   echo "L     --frontport : web ui frontend port"
@@ -42,6 +41,7 @@ function usage() {
   echo "L     --registry : uri of the backend registry to set on the local docker daemon"
   echo "L     --debug : active some debug trace"
   echo "L     --name : registry name"
+  echo "L     --compose : compose file"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
@@ -56,6 +56,7 @@ REGISTRY='${DEFAULT_REGISTRY_URI}' 						'' 			'schema://host:port'				s 			0			
 DEBUG=''            'd'    		''            		b     		0     		'1'           		Active some debug trace.
 STORAGE=''            ''    		''            		b     		0     		'1'           		Delete storage path
 NAME='' 						'n' 			'name'				s 			0			''		  A name.
+COMPOSE='${DEFAULT_COMPOSE_FILE}' 						'' 			'file'				s 			0			''		  Path to compose file.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
 
@@ -119,9 +120,23 @@ if [ ! "$NAME" = "" ]; then
 fi
 
 SERVICE_NAME="$DEFAULT_SERVICE_NAME"
-COMPOSE_FILE_ROOT="$DEFAULT_COMPOSE_FILE_ROOT"
-COMPOSE_FILE="$DEFAULT_COMPOSE_FILE"
-DOCKER_COMPOSE_OPT="--project-name $SERVICE_NAME"
+
+$STELLA_API require "docker" "docker" "SYSTEM"
+case $ACTION in
+  create|start|stop|destroy|status|shell )
+    $STELLA_API require "docker-compose" "docker-compose" "STELLA_FEATURE"
+    COMPOSE_FILE="${COMPOSE}"
+    if [ ! -f "${COMPOSE_FILE}" ]; then
+      echo "** ERROR : Compose file ${COMPOSE_FILE} do not exist"
+      exit 1
+    fi
+    COMPOSE_FILE_ROOT="$(dirname ${COMPOSE})"
+    DOCKER_COMPOSE_OPT="--project-name ${SERVICE_NAME} -f ${COMPOSE_FILE}"
+    ;;
+esac
+
+
+
 # NOTE : to much verbose
 #[ "$DEBUG" = "1" ] && DOCKER_COMPOSE_OPT="$DOCKER_COMPOSE_OPT --verbose"
 
@@ -139,46 +154,43 @@ REGISTRY_PORT="$__stella_uri_port"
 
 
 
-$STELLA_API require "docker" "docker" "SYSTEM"
-case $ACTION in
-  create|start|stop|destroy|status|shell )
-    $STELLA_API require "docker-compose" "docker-compose" "STELLA_FEATURE"
-    ;;
-esac
+
 
 
 # ------------- ACTIONS -------------------------
 if [ "$ACTION" = "create" ]; then
   mkdir -p "$REGISTRY_STORAGE_PATH"
-  cd "$DEFAULT_COMPOSE_FILE_ROOT"
+  cd "$COMPOSE_FILE_ROOT"
   __log_run docker-compose $DOCKER_COMPOSE_OPT down --volumes
   __log_run docker-compose $DOCKER_COMPOSE_OPT up -d
 fi
 
 if [ "$ACTION" = "start" ]; then
   mkdir -p "$REGISTRY_STORAGE_PATH"
-  cd "$DEFAULT_COMPOSE_FILE_ROOT"
+  cd "$COMPOSE_FILE_ROOT"
   __log_run docker-compose $DOCKER_COMPOSE_OPT start
 fi
 
 if [ "$ACTION" = "stop" ]; then
-  cd "$DEFAULT_COMPOSE_FILE_ROOT"
+  cd "$COMPOSE_FILE_ROOT"
   __log_run docker-compose $DOCKER_COMPOSE_OPT stop
 fi
 
 if [ "$ACTION" = "destroy" ]; then
-  cd "$DEFAULT_COMPOSE_FILE_ROOT"
-  __log_run docker-compose $DOCKER_COMPOSE_OPT down --rmi all --volumes
+  cd "$COMPOSE_FILE_ROOT"
+  # NOTE we cannot remove image with rmi because when using --name argument there might be several other instance using theses imagess
+  #__log_run docker-compose $DOCKER_COMPOSE_OPT down --rmi all --volumes
+  __log_run docker-compose $DOCKER_COMPOSE_OPT down --volumes
   [ "$STORAGE" = "1" ] && rm -Rf "$REGISTRY_STORAGE_PATH"
 fi
 
 if [ "$ACTION" = "status" ]; then
-  cd "$DEFAULT_COMPOSE_FILE_ROOT"
+  cd "$COMPOSE_FILE_ROOT"
   __log_run docker-compose $DOCKER_COMPOSE_OPT ps
 fi
 
 if [ "$ACTION" = "shell" ]; then
-  cd "$DEFAULT_COMPOSE_FILE_ROOT"
+  cd "$COMPOSE_FILE_ROOT"
   __log_run docker-compose $DOCKER_COMPOSE_OPT exec backend sh
 fi
 
