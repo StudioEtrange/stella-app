@@ -23,6 +23,7 @@ DEFAULT_SERVICE_NAME="cloud9-tool"
 # DOCKER IMAGES INFO --------------------------------------
 DEFAULT_DOCKER_IMAGE="sapk/cloud9"
 DEFAULT_DOCKER_IMAGE_VERSION="alpine"
+DEFAULT_DOCKER_PLUGIN_BINDFS="studioetrange/bindfs:1.0"
 
 # USAGE --------------------------------------
 function usage() {
@@ -88,14 +89,14 @@ __local_bindfs_volume_create() {
   [ "$__uid" = "" ] && __uid="0"
   [ "$__gid" = "" ] && __gid="0"
 
-	__log_run docker volume create -d lebokus/bindfs -o sourcePath="$__local_path" -o map=$UID/$__uid:@$UID/@$__gid --name "$__volume_name" 2>/dev/null
+	__log_run docker volume create -d ${DEFAULT_DOCKER_PLUGIN_BINDFS} -o sourcePath="$__local_path" -o map=$UID/$__uid:@$UID/@$__gid --name "$__volume_name" 2>/dev/null
 }
 
 __require_bindfs_docker_plugin() {
-  __log_run docker plugin inspect studioetrange/bindfs:1.0 1>/dev/null 2>&1
+  __log_run docker plugin inspect "${DEFAULT_DOCKER_PLUGIN_BINDFS}" 1>/dev/null 2>&1
   if [ "$?" = "1" ]; then
     echo "** Install docker volume plugin bindfs"
-    __log_run docker plugin install studioetrange/bindfs:1.0
+    __log_run docker plugin install "${DEFAULT_DOCKER_PLUGIN_BINDFS}"
   fi
 }
 
