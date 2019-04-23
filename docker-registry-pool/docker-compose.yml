@@ -26,4 +26,4 @@ services:
       - backend
     environment:
       ENV_DOCKER_REGISTRY_HOST: backend
-      ENV_DOCKER_REGISTRY_PORT: ${REGISTRY_BACKEND_PORT}
+      ENV_DOCKER_REGISTRY_PORT: 5000
