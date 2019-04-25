@@ -40,7 +40,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy'
+ACTION=											'' 			a				'create start stop status shell destroy'  '1'
 "
 OPTIONS="
 IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  Listening netdata ip.

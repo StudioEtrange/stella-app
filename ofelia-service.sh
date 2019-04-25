@@ -58,8 +58,8 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status destroy list info logs'
-JOB=											'' 			s				''
+ACTION=											'' 			a			'create start stop status destroy list info logs' '1'
+JOB=											'' 			s				'' '1'
 "
 OPTIONS="
 FORCE='0'            'f'    		''            		b     		0     		'1'           			Force current action.

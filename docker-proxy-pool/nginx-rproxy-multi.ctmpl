@@ -10,9 +10,9 @@
 #                 SERVICE_XXXX_TAG=rproxy,rproxy-raw,/path or
 #                 SERVICE_XXXX_TAG=rproxy,rproxy-redirect,myservice
 #     Available modes
-#         rproxy-subpath : /global_name/myservice ==> requests ares proxyfied to the root of the service endpoint
-#         rproxy-samepath : /global_name/myservice ==> requests ares proxyfied to /global_name/myservice of the service endpoint
-#         rproxy-raw : ==> /raw ===> requests ares proxyfied to the root of the service endpoint
+#         rproxy-subpath : /global_name/myservice ==> requests are proxyfied to the root of the service endpoint
+#         rproxy-samepath : /global_name/myservice ==> requests are proxyfied to /global_name/myservice of the service endpoint
+#         rproxy-raw : ==> /raw ===> requests are proxyfied to the root of the service endpoint
 #         rproxy-redirect : /global_name/myservice ==> HTTP redirect to the root of the service endpoint
 
 # NOTE : we replace each ":" in ID value and each "/" and  with "_" in tag values to build an unique service ID

@@ -46,7 +46,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy insecure secure'
+ACTION=											'' 			a				'create start stop status shell destroy insecure secure' '1'	
 "
 OPTIONS="
 REGISTRYPATH='${DEFAULT_REGISTRY_STORAGE_PATH}' 						'' 			'path'				s 			0			''		  Storage path.

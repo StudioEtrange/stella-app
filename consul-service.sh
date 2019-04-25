@@ -25,7 +25,7 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 # SERVICE INFO --------------------------------------
 DEFAULT_HTTP_PORT=8500
 DEFAULT_DNS_PORT=8600
-DEFAULT_PROXY_PORT=80
+
 DEFAULT_IP=$STELLA_HOST_DEFAULT_IP
 DEFAULT_SERVICE_NAME="consul-service"
 
@@ -64,9 +64,9 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy'
-TARGET=											'' 			a				'client server'
-ID=											'' 			s				''
+ACTION=											'' 			a				'create start stop status shell destroy' '1'
+TARGET=											'' 			a				'client server' '1'
+ID=											'' 			s				'' '1'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Consul http api port.

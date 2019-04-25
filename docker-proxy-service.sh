@@ -142,8 +142,8 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy'
-TARGET=											'' 			a				'registrator proxy proxygen'
+ACTION=											'' 			a				'create start stop status shell destroy' '1'
+TARGET=											'' 			a				'registrator proxy proxygen' '1'
 "
 OPTIONS="
 CONSUL='$DEFAULT_CONSUL_URI' 						'' 			'string'				s 			0			''		  Consul URI.
