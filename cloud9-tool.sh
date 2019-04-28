@@ -60,7 +60,7 @@ LOGIN='$DEFAULT_LOGIN' 						'' 			'string'				s 			0			''		  optional login pro
 PASSWORD='$DEFAULT_PASSWORD' 						'' 			'string'				s 			0			''		  optional password protection.
 DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "" "$@"
 
 
 # ------------- COMPUTE ARGUMENTS AND VALUES -------------------------

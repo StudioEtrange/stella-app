@@ -62,7 +62,7 @@ VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Tra
 DOCKER=''            ''    		''            		b     		0     		'1'           			Active some debug trace.
 DEBUG=''            'd'    		''            		b     		0     		'1'           			Will compute some default option to use docker as backend.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_ARG DOCKERARG" "$@"
 
 # ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
 DOCKER_IMAGE_VERSION=$VERSION
@@ -125,7 +125,7 @@ if [ "$ACTION" = "create" ]; then
         -p $HTTPADMIN:8080 \
         -v $CONF:/etc/traefik/traefik.toml \
         $DOCKER_SOCKET_MOUNT $DOCKER_CERT_MOUNT \
-        $DOCKER_URI "$DOCKER_BACKEND_OPTIONS" "$APPARG"
+        $DOCKER_URI "$DOCKER_BACKEND_OPTIONS" $DOCKERARG
 fi
 
 if [ "$ACTION" = "start" ]; then

@@ -58,7 +58,7 @@ STORAGE=''            ''    		''            		b     		0     		'1'           		De
 ACCESSKEY='' 						'' 			'key'				s 			0			''		  Storage access key.
 SECRETKEY='' 						'' 			'key'				s 			0			''		  Storage secret key.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_ARG DOCKERARG" "$@"
 
 # FUNCTIONS --------------------------------------
 __log_run() {
@@ -96,7 +96,7 @@ if [ "$ACTION" = "create" ]; then
               -p $PORT:9000 \
               -v $STORAGEPATH:/data \
               -v $SERVICE_DATA_NAME:/root/.minio \
-              $_OPT $APPARG $DOCKER_URI server /data
+              $_OPT $DOCKERARG $DOCKER_URI server /data
 fi
 
 if [ "$ACTION" = "destroy" ]; then

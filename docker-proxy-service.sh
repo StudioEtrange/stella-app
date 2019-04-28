@@ -154,7 +154,7 @@ VERSION='' 			    'v' 			'string'				s 			0			''		  Docker image version.
 TEMPLATE='$DEFAULT_TEMPLATE' 						'' 			'string'				s 			0			''		  Template file for proxy-gen (ex : /path/nginx.ctmpl).
 DEBUG=''            'd'    		''            		b     		0     		'1'           		Active some debug trace.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "DOCKERARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_ARG DOCKERARG" "$@"
 
 # FUNCTIONS --------------------------------------
 __compute_var() {

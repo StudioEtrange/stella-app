@@ -46,7 +46,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy insecure secure' '1'	
+ACTION=											'' 			a				'create start stop status shell destroy insecure secure' '1'
 "
 OPTIONS="
 REGISTRYPATH='${DEFAULT_REGISTRY_STORAGE_PATH}' 						'' 			'path'				s 			0			''		  Storage path.
@@ -58,7 +58,7 @@ STORAGE=''            ''    		''            		b     		0     		'1'           		De
 NAME='' 						'n' 			'name'				s 			0			''		  A name.
 COMPOSE='${DEFAULT_COMPOSE_FILE}' 						'' 			'file'				s 			0			''		  Path to compose file.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "" "$@"
 
 # FUNCTIONS --------------------------------------
 __log_run() {

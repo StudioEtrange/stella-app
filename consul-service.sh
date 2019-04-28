@@ -79,7 +79,7 @@ DEBUG=''            'd'    		''            		b     		0     		'1'           			Ac
 DATACENTER='' 			'' 			'string'				s 			0			''		  Consul datacenter name.
 DOMAINNAME='' 			'' 			'string'				s 			0			''		  Consul domain name.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_ARG DOCKERARG" "$@"
 
 
 # FUNCTIONS --------------------------------------
@@ -134,7 +134,7 @@ if [ "$ACTION" = "create" ]; then
             --net=host \
             -v $SERVICE_NAME:/consul/data \
             -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
-            $APPARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
+            $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
             -server -bootstrap-expect=1 -ui \
             -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP $_OPT
         ;;
@@ -146,7 +146,7 @@ if [ "$ACTION" = "create" ]; then
           --net=host \
           -v $SERVICE_NAME:/consul/data \
           -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true, "disable_update_check": true}' \
-          $APPARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
+          $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
           -retry-join=$CONSULIP -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP
         ;;
 

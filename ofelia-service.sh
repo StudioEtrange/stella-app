@@ -70,7 +70,7 @@ REPORTSTORE='$DEFAULT_OFELIA_REPORT_OUTSIDE_STORE' 						'' 			'path'				s 			0	
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  Netdata version (check available version on netdata website).
 DEBUG='0'            'd'    		''            		b     		0     		'1'           			Active some debug trace.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "DOCKERARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_ARG DOCKERARG" "$@"
 
 
 # FUNCTIONS --------------------------------------

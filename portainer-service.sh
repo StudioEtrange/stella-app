@@ -34,14 +34,14 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a			'create start stop status shell destroy'  '1'
+ACTION=											'' 			a			'create start stop status shell destroy'  '1' Action.
 "
 OPTIONS="
 PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening port.
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  portainer image version .
 DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "APPARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_ARG DOCKERARG" "$@"
 
 # ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
 DOCKER_IMAGE_VERSION=$VERSION
@@ -72,7 +72,7 @@ if [ "$ACTION" = "create" ]; then
               -p $PORT:9000 \
               -v /var/run/docker.sock:/var/run/docker.sock \
               -v $SERVICE_DATA_NAME:/data \
-              $APPARG $DOCKER_URI
+              $DOCKERARG $DOCKER_URI
 fi
 
 if [ "$ACTION" = "destroy" ]; then

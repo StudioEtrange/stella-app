@@ -21,12 +21,12 @@ function usage() {
 }
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'init install list purge' '1'	
+ACTION=											'' 			a				'init install list purge' '1'
 "
 OPTIONS="
 VERSION='' 			'v' 			'string'				s 			0			''		  Docker Engine ubuntu version (use list command to see available version).
 "
-$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "docker-ubuntu" "$(usage)" "APPARG" "$@"
+$STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "docker-ubuntu" "$(usage)" "" "$@"
 
 
 _check_root() {
