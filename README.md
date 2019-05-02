@@ -119,6 +119,14 @@ Use it with a docker volume manager
 ```
 
 
+* **watchtower-service** *[NEEDS docker]*
+
+  watchtower is a process for automating update of running docker container with updated versions of theirs images. hhttps://github.com/containrrr/watchtower.
+
+```
+  ./watchtower-service.sh -h
+```
+
 * **ofelia-service** *[NEEDS docker]*
 
   Ofelia is a job scheduler for docker. https://github.com/mcuadros/ofelia
