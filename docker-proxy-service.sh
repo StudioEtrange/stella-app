@@ -106,7 +106,7 @@ DEFAULT_DOCKER_IMAGE_VERSION_registrator="v7"
 DEFAULT_DOCKER_IMAGE_proxy="nginx"
 DEFAULT_DOCKER_IMAGE_VERSION_proxy="1.12.2-alpine"
 DEFAULT_DOCKER_IMAGE_proxygen="studioetrange/docker-consul-template"
-DEFAULT_DOCKER_IMAGE_VERSION_proxygen="0.19.4"
+DEFAULT_DOCKER_IMAGE_VERSION_proxygen="0.19.5"
 
 # NOTE there might be problems between registrator v7 and if consul version > 1.1.0
 # for SERVICE_CHECK_SCRIPT registrator feature
