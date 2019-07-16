@@ -4,21 +4,16 @@ _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
 STELLA_APP_PROPERTIES_FILENAME="docker-scheduler-service.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
+
+# TO BE DONE - NOT FINISHIED
+# Based on ofelia-service.sh but with willfarrell/crontab
+
 # LINKS :
 # https://github.com/willfarrell/docker-crontab
 # https://hub.docker.com/r/willfarrell/crontab
 # schedule format : https://en.wikipedia.org/wiki/Cron
 
-# FORK
-# https://github.com/Postcon/ofelia : seems to have more features, and a special property for registry
-# https://github.com/Trane9991/ofelia : add support to pass ofelia configuration with docker labels
-# https://github.com/vigasin/ofelia : and support for bind mount volyme
 
-# NOTE :
-# 2019-02-28 : A lot of problems with ofelia appears to make ofelia not so interesting
-# 1/ task job-local try to execute command inside ofelia container (not on host) which is a minimal go binary
-# 2/ ofelia do not provide a way to mount volume, you have to create a container (maybe with docker-compose) before and use only task job-exec
-# 3/ stdout log seems to not work. Might be a problem with AttachContainer not make like this https://github.com/fsouza/go-dockerclient/issues/310 https://gist.github.com/pwaller/314c7591a8bfd32f8999
 
 # SERVICE INFO --------------------------------------
 DEFAULT_OFELIA_JOB_STORE="$STELLA_APP_WORK_ROOT/docker-scheduler-service-jobs"
