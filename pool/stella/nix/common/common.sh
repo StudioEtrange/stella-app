@@ -2014,16 +2014,18 @@ __ini_file() {
 #				EXTRA PARAMETER : non parsed parameter are non defined parameter passed to command line
 #				EXTRA ARG : end of options arg are arguments after '--'
 __argparse(){
-	local PROGNAME=$(__get_filename_from_string "$1")
+	local PROGNAME
+	PROGNAME="$(__get_filename_from_string "$1")"
 	local OPTIONS="$2"
 	local PARAMETERS="$3"
 	local SHORT_DESCRIPTION="$4"
 	local LONG_DESCRIPTION="$5"
 	local OPT="$6"
 	# available options
-	#		EXTRA_PARAMETER : a variable name which will contains non parsed parameter
+	#		EXTRA_PARAMETER : a variable name which will contains non parsed parameter (parameter before -- which are not defined)
 	#		EXTRA_ARG : a variable name which will contains a string with EXTRA ARG (arguments after --)
-	#		EXTRA_ARG_EVAL : a variable name which will contains a string to evalute, that will fix @ with EXTRA ARG (arguments after --)
+	#		EXTRA_ARG_EVAL : a variable name which will contains a string to evalute, that will set variable '$@' with EXTRA ARG (arguments after --)
+	#		see samples in test/argparse/sample-app.sh
 
 	shift 6
 
