@@ -205,6 +205,7 @@ if [ "$ACTION" = "create" ]; then
 
           [ ! "$SERVICEIF" = "" ] && SERVICEIP="$($STELLA_API get_ip_from_interface $SERVICEIF)"
 
+          # NOTE : registrator -cleanup, clean dangling docker in consul when registrator start
           if [ "$SERVICEIP" = "" ]; then
             __log_run docker run -d \
               --name=$SERVICE_NAME \
@@ -212,6 +213,7 @@ if [ "$ACTION" = "create" ]; then
               --net=host \
               -v /var/run/docker.sock:/tmp/docker.sock \
               $DOCKERARG $DOCKER_URI \
+              -cleanup \
               consul://$__stella_uri_address
           else
             __log_run docker run -d \
@@ -221,6 +223,7 @@ if [ "$ACTION" = "create" ]; then
               -v /var/run/docker.sock:/tmp/docker.sock \
               $DOCKERARG $DOCKER_URI \
               -ip=$SERVICEIP \
+              -cleanup \
               consul://$__stella_uri_address
           fi
         ;;
