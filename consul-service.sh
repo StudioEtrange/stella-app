@@ -88,9 +88,15 @@ __log_run() {
 	"$@"
 }
 
+# TODO : migrate to stella api (this function exist inside stella api)
 # work even if we pass an ip
-__convert_hostname_to_ip() {
-  echo "$(ping -c 1 $1 | gawk -F '[()]' '/PING/{print $2}')"
+__get_ip_from_hostname() {
+	type getent &>/dev/null
+	if [ $? = 0 ]; then
+		echo "$(getent ahostsv4 $1 | grep STREAM | head -n 1 | cut -d ' ' -f 1)"
+	else
+		echo "$(ping -q -c 1 -t 1 $1 2>/dev/null | grep -m 1 PING | cut -d "(" -f2 | cut -d ")" -f1)"
+	fi
 }
 
 # ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
@@ -100,15 +106,10 @@ DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 SERVICE_NAME=$DEFAULT_SERVICE_NAME
 SERVICE_NAME=${SERVICE_NAME}-${TARGET}-${ID}
 
-if [ "$IF" = "" ]; then
-  CONSUL_AGENT_BIND_IP="${IP}"
-  CONSUL_AGENT_BIND_IP="$(__convert_hostname_to_ip $CONSUL_AGENT_BIND_IP)"
-else
-  CONSUL_AGENT_BIND_IP="$($STELLA_API get_ip_from_interface ${IF})"
-fi
+
 
 # convert hostname to IP
-CONSULIP="$(__convert_hostname_to_ip $CONSULIP)"
+CONSULIP="$(__get_ip_from_hostname $CONSULIP)"
 
 # test docker client is installed in this system
 $STELLA_API require "docker" "docker" "SYSTEM"
@@ -128,26 +129,58 @@ if [ "$ACTION" = "create" ]; then
         [ ! "$DOMAINNAME" = "" ]  && _OPT="$_OPT -domain=$DOMAINNAME"
 
         # NOTE : , "disable_update_check": true ==> disable HTTP request to hashicorp to check critical update
-        __log_run docker run -d \
+        if [ "$IF" = "" ]; then
+
+          CONSUL_AGENT_BIND_IP="$(__get_ip_from_hostname $IP)"
+
+          __log_run docker run -d \
+              --name $SERVICE_NAME \
+              --restart always \
+              --net=host \
+              -v $SERVICE_NAME:/consul/data \
+              -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
+              $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
+              -server -bootstrap-expect=1 -ui \
+              -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP $_OPT
+        else
+           __log_run docker run -d \
+              --name $SERVICE_NAME \
+              --restart always \
+              --net=host \
+              -v $SERVICE_NAME:/consul/data \
+              -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
+              -e CONSUL_BIND_INTERFACE=$IF -e CONSUL_CLIENT_INTERFACE=$IF \
+              $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
+              -server -bootstrap-expect=1 -ui \
+              $_OPT
+        fi
+        ;;
+
+      client )
+        if [ "$IF" = "" ]; then
+          CONSUL_AGENT_BIND_IP="$(__get_ip_from_hostname $IP)"
+
+          __log_run docker run -d \
             --name $SERVICE_NAME \
             --restart always \
             --net=host \
             -v $SERVICE_NAME:/consul/data \
-            -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
+            -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true, "disable_update_check": true}' \
             $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
-            -server -bootstrap-expect=1 -ui \
-            -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP $_OPT
-        ;;
+            -retry-join=$CONSULIP -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP
+        else
 
-      client )
-        __log_run docker run -d \
-          --name $SERVICE_NAME \
-          --restart always \
-          --net=host \
-          -v $SERVICE_NAME:/consul/data \
-          -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true, "disable_update_check": true}' \
-          $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
-          -retry-join=$CONSULIP -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP
+          __log_run docker run -d \
+            --name $SERVICE_NAME \
+            --restart always \
+            --net=host \
+            -v $SERVICE_NAME:/consul/data \
+            -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true, "disable_update_check": true}' \
+            -e CONSUL_BIND_INTERFACE=$IF -e CONSUL_CLIENT_INTERFACE=$IF \
+            $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
+            -retry-join=$CONSULIP
+
+        fi
         ;;
 
 
