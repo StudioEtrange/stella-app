@@ -92,6 +92,9 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 # docker logs docker-proxy-service-proxy
 # docker stop ig && docker rm ig
 
+# NOTE for macos docker desktop
+#     We use --net=host on container'proxygen'. Because we need to reach consul at 'localhost'
+
 # SERVICE INFO --------------------------------------
 DEFAULT_SERVICE_NAME="docker-proxy-service"
 DEFAULT_CONSUL_URI=localhost:8500
@@ -255,6 +258,7 @@ if [ "$ACTION" = "create" ]; then
           __log_run docker run -d \
             --name=$SERVICE_NAME \
             --restart always \
+            --net=host \
             -e CONSUL_TEMPLATE_LOG=debug \
             --volumes-from ${DEFAULT_SERVICE_NAME}-proxy \
             -v /var/run/docker.sock:/tmp/docker.sock $_OPT \
