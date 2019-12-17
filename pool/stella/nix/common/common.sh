@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# shellcheck shell=bash
 if [ ! "$_STELLA_COMMON_INCLUDED_" = "1" ]; then
 _STELLA_COMMON_INCLUDED_=1
 
@@ -8,6 +8,229 @@ _STELLA_COMMON_INCLUDED_=1
 
 
 # VARIOUS-----------------------------
+
+
+
+# return a randomly number list separated by space
+# PARAMETERS
+# nb of requested number to pick
+# range begin - default 0
+# range end - default 65535
+# OPTIONS :
+# CONSECUTIVE - return a list of consecutive number
+# EXCLUDE_LIST_BEGIN - begin of a list of number to exclude
+# EXCLUDE_LIST_END - begin of a list of number to exclude
+# SAMPLE :
+#	__random_number_list_from_range "2" "0" "100"
+#	__random_number_list_from_range "2" "0" "100" "CONSECUTIVE"
+#	__random_number_list_from_range "2" "640" "650" "EXCLUDE_LIST_BEGIN 602 603 645 642 641 644 646 650 EXCLUDE_LIST_END CONSECUTIVE"
+__random_number_list_from_range() {
+	local requested_nb="${1:-1}"
+	# authorized number start range (included)
+	local range_begin="${2:-0}"
+	# authorized number end range (included)
+	local range_end="${3:-65535}"
+
+	local opt="$4"
+	local excluded_opt=
+	local flag_exclude=
+	local opt_consecutive=
+
+	for o in $opt; do
+		[ "$o" = "CONSECUTIVE" ] && flag_exclude= && opt_consecutive="CONSECUTIVE"
+		[ "$o" = "EXCLUDE_LIST_END" ] && flag_exclude=
+		[ "$flag_exclude" = "ON" ] && excluded_opt="$excluded_opt $o"
+		[ "$o" = "EXCLUDE_LIST_BEGIN" ] && flag_exclude="ON"
+	done
+
+	# result list of number
+	local result_list=( )
+	# excluded number lists
+	local original_exclude_list=( )
+	local exclude_list=( )
+
+	original_exclude_list=( $excluded_opt )
+	original_exclude_list=( $(printf '%s\n' "${original_exclude_list[@]}" | sort -n | uniq ))
+	#echo original_exclude_list : "${original_exclude_list[@]}"
+	
+	# size of authorized number range
+	local range_size=$(( range_end - range_begin + 1 ))
+	# CONSECUTIVE MODE : end of the range (included) of authorized number as first value of serie
+	local range_end_valid=$range_end
+	# CONSECUTIVE MODE : how many number are excluded from the end of the range of authorized number as first value of serie
+	local nb_non_valid_from_range_end_valid
+	# total of non authorized number in range (including the whole range, even last number excluded in CONSECUTIVE MODE)
+	local nb_non_valid_in_range=0
+	# total of available authorized number (as first value of serie in case of CONSECUTIVE mode)
+	local nb_available=0
+
+	local excluded
+	local current
+	local selector
+	
+	
+	if [ "$opt_consecutive" = "CONSECUTIVE" ]; then
+		# determine last valid number
+		range_end_valid=$(( range_end - requested_nb ))
+
+		nb_non_valid_from_range_end_valid=$(( range_end - range_end_valid ))
+		nb_non_valid_in_range=$(( nb_non_valid_in_range + nb_non_valid_from_range_end_valid ))
+	
+		local temp_array=( )
+		# tag all excluded number as non valid as first selected consecutive number and number preceding them
+		for excluded in "${original_exclude_list[@]}"
+		do
+			#echo analyse excluded number : $excluded
+			if [[ $excluded -ge $range_begin && $excluded -le $range_end_valid ]]; then
+				
+				for i in $(seq 0 $(( requested_nb - 1)) ); do
+					current=$((excluded - i))
+					if [ "${temp_array[$current]}" = "" ]; then
+						if [[ $current -ge $range_begin ]]; then
+							temp_array[$current]="1"
+							exclude_list+=( $current)
+							nb_non_valid_in_range=$(( nb_non_valid_in_range + 1 ))
+						fi
+					fi
+				done
+			fi
+		done
+	else
+		for excluded in "${original_exclude_list[@]}"
+		do
+			#echo analyse excluded number : $excluded
+			if [[ $excluded -ge $range_begin && $excluded -le $range_end ]]; then
+				exclude_list+=( $excluded )
+				nb_non_valid_in_range=$(( nb_non_valid_in_range + 1 ))
+			fi
+		done
+	fi
+
+	exclude_list=( $(printf '%s\n' "${exclude_list[@]}" | sort -n) )
+	nb_available=$(( range_size - nb_non_valid_in_range ))
+
+	# echo range_begin : $range_begin
+	# echo range_end_valid : $range_end_valid
+	# echo range_end : $range_end
+	# echo computed exclude list : "${exclude_list[@]}"
+	# echo range_size : $range_size
+	# echo nb_non_valid_in_range : $nb_non_valid_in_range
+	# echo nb_non_valid_from_range_end_valid : $nb_non_valid_from_range_end_valid
+	# echo nb_available : $nb_available
+
+	if [ "$opt_consecutive" = "CONSECUTIVE" ]; then
+		# not enough available first number of a consecutive series
+		[ $nb_available -gt 0 ] || return 1
+	else
+		# not enough available number
+		[ $nb_available -ge $requested_nb ] || return 1
+	fi
+
+
+	if [ "$opt_consecutive" = "CONSECUTIVE" ]; then
+
+		selector=$(( RANDOM % nb_available ))
+		# echo --- try the position of available list as first selected number : $(( selector + 1 ))th
+
+		selector=$(( range_begin + selector ))
+		# echo this should be number : $selector
+
+		for excluded in "${exclude_list[@]}"; do
+			[ $excluded -le $selector ] && selector=$(( selector + 1))
+		done
+
+		# echo selected first number : $selector
+		for i in $(seq 0 $(( requested_nb - 1)) ); do
+			current=$(( selector + i ))
+			result_list+=( $current )
+			exclude_list+=( $current )
+		done
+
+		exclude_list=( $(printf '%s\n' "${exclude_list[@]}" | sort -n ))
+		nb_available=$(( nb_available - 1 ))	
+		# echo new excluded list : "${exclude_list[@]}"
+		# echo there is still nb available number as first selected : $nb_available	
+
+	else
+
+		while [[ $nb_available -gt 0 ]]; do
+			
+			selector=$(( RANDOM % nb_available ))
+			# echo --- try the position of available list as selected number : $(( selector + 1 ))th
+
+			selector=$(( range_begin + selector ))
+			# echo this should be number : $selector
+			
+			for excluded in "${exclude_list[@]}"; do
+				[ $excluded -le $selector ] && selector=$(( selector + 1))
+			done
+
+			
+			result_list+=( $selector )
+			exclude_list+=( $selector )
+			exclude_list=( $(printf '%s\n' "${exclude_list[@]}" | sort -n ))
+			nb_available=$(( nb_available - 1 ))
+
+			# echo selected number : $selector
+			# echo new excluded list : "${exclude_list[@]}"
+			# echo there is still nb_available : $nb_available	
+
+			[ ${#result_list[@]} -eq $requested_nb ] && break;
+
+		done
+	fi
+
+	[ ${#result_list[@]} -eq $requested_nb ] || return 1
+
+	printf '%d ' "${result_list[@]}" | sort -n
+}
+
+
+
+
+# check if a user is member of group name
+# __is_group_member <UID|user name> <group name>
+# return 0 if user is a member
+# https://stackoverflow.com/a/28926650/5027535
+__is_group_member() {
+	[[ " "$(id -Gn $2)" " == *" $1 "* ]]
+}
+
+# HASH string with sha256
+# https://stackoverflow.com/questions/3358420/generating-a-sha256-from-the-linux-command-line
+__sha256() {
+	if [ "$STELLA_CURRENT_PLATFORM" = "darwin" ]; then
+		printf "$*" | shasum -a 256 | tr -dc '[:alnum:]'
+	else
+		type sha256sum &>/dev/null && printf "$*" | sha256sum | tr -dc '[:alnum:]'
+	fi
+}
+
+# generate an unique id for a machine
+# MACHINE_ID (default) use /etc/machine-id https://unix.stackexchange.com/a/144915
+# PRODUCT_UUID use product_uuid -- need sudo -- https://unix.stackexchange.com/a/144892
+# SEED is a way to salt result with a constant
+__generate_machine_id() {
+	local _OPT="$1"
+
+	local _flag_puuid=
+	local _flag_mid=1
+	local _seed=
+	for o in $_OPT; do
+		[ "$o" = "PRODUCT_UUID" ] && _flag_puuid="1"
+		[ "$o" = "MACHINE_ID" ] && _flag_mid="1"
+		[ "$_flag_seed" = "1" ] && _seed="$o" && _flag_seed=
+		[ "$o" = "SEED" ] && _flag_seed="1"
+	done
+
+	# NOTE : order is important
+	local _file_list=
+	[ "${_flag_mid}" = "1" ] && _file_list="${_file_list} /etc/machine-id"
+	[ "${_flag_puuid}" = "1" ] && _file_list="${_file_list} /sys/class/dmi/id/product_uuid"
+
+
+	awk '{printf "'${_seed}'%s",$0}' ${_file_list} | sha256sum | tr -dc '[:alnum:]'
+}
 
 # generate a random password
 # NOTE on macos : need LC_CTYPE=C http://nerdbynature.de/s9y/2010/04/11/tr-Illegal-byte-sequence
@@ -73,16 +296,179 @@ __sudo_end_session() {
 
 
 
+# get the most recent version of a list
 # option :
 # ENDING_CHAR_REVERSE
 # SEP .
 __get_last_version() {
-	local list=$1
+	local list="$1"
 	local opt="$2"
 
 	echo $(__sort_version "$list" "$opt DESC") | cut -d' ' -f 1
 }
 
+# pick a version from a list according to constraint
+# selector could be
+#				a specific version number
+#				or a version number with a constraint symbol >, >=, <, <=, ^
+#				>version : most recent after version
+#					>1.0 select the latest version after 1.0, which is not 1.0 (like 2.3.4)
+#				>=version : most recent including version
+#					>=1.0 select the latest version after 1.0, which may be 1.0
+#				<version : most recent just before version
+#					<1.0 select the latest just before 1.0, which is not 1.0 (like 0.3.4)
+#				<=version : most recent just before version including version itself
+#					<=1.0 select the latest version just before 1.0, which may be 1.0
+#				^version : pin version and select most recent version with same version part (not exactly like npm)
+#					^1.0 select the latest 1.0.* version (like 1.0.0 or 1.0.4)
+#					^1 select the latest 1.* version (like 1.0.0 or 1.2.4)
+# option :
+# ENDING_CHAR_REVERSE
+# SEP .
+#		__select_version_from_list ">1.1.1a" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+# desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
+# select_version result is : 1.1.1b
+#		__select_version_from_list ">1.1.1b" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+# desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
+# select_version result is : <none>
+#		__select_version_from_list "<=1.1.1c" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+# desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
+# select_version result is : 1.1.1b
+#		__select_version_from_list "<1.1" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+# desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
+# select_version result is : 1.1.0
+#		__select_version_from_list "<1.1.0a" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+# desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
+# select_version result is : 1.1.0
+#		__select_version_from_list "<=1.1.1a" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+# desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
+# select_version result is : 1.1.0
+#		__select_version_from_list "^1.1.1a" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+# desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
+# select_version result is : 1.1.1b
+#		__select_version_from_list "^1.0" "1.0.0 1.0.1 1.1.1 1.1.1a 1.1.1b" "SEP ."
+# desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0 1.0.1 1.0.8
+# select_version result is : 1.0.1
+__select_version_from_list() {
+	local selector="$1"
+	local list="$2"
+	local opt="$3"
+	local result=""
+
+	local v
+	local sorted_list=
+	local flag
+	flag=0
+	case ${selector} in
+		\>=*)
+			selector="${selector:2}"
+			sorted_list="$(__sort_version "${selector} ${list}" "DESC ${opt}")"
+			result="$(echo $sorted_list | cut -d' ' -f 1)"
+			# if selector is the result (equal), we must check if selector exist as is in the orignal list
+			if [ "${result}" = "${selector}" ]; then
+				result=
+				for v in ${list}; do
+					if [ "${v}" = "${selector}" ]; then
+						result="${selector}"
+						break;
+					fi
+				done
+			fi
+			;;
+
+
+		\>* )
+			selector="${selector:1}"
+			sorted_list="$(__sort_version "${selector} ${list}" "DESC ${opt}")"
+			result="$(echo $sorted_list | cut -d' ' -f 1)"
+			# if most recent version is equal to selector, so there is no greater version than selector
+			[ "${result}" = "${selector}" ] && result=""
+			;;
+
+
+		\<=* )
+			selector="${selector:2}"
+			local selector_value_exist=0
+			# we must check if selector exist as is in the orignal list
+			for v in ${list}; do
+				if [ "${v}" = "${selector}" ]; then
+					selector_value_exist=1
+					break;
+				fi
+			done
+
+			sorted_list="$(__sort_version "${selector} ${list}" "DESC ${opt}")"
+			for v in ${sorted_list}; do
+				# we reach the selector, result is the selector itself only if it exist in original list, or the next value
+				if [ "${v}" = "${selector}" ]; then
+					if [ "${selector_value_exist}" = "1" ]; then
+						result="${v}"
+						break
+					else
+						flag=1
+					fi
+				else
+					if [ "${flag}" = "1" ]; then
+						result="${v}"
+						break
+					fi
+				fi
+			done
+			;;
+
+		\<* )
+			selector="${selector:1}"
+			list="${selector} ${list}"
+			sorted_list="$(__sort_version "${list}" "DESC ${opt}")"
+			for v in ${sorted_list}; do
+				# NOTE : because selector version might exist in original list, we may have duplicate version in list
+				# so while v is selector we do not record value as result
+				if [ "${v}" = "${selector}" ]; then
+					flag=1
+				else
+					# the result is the next desc value just after selector
+					if [ "${flag}" = "1" ]; then
+						result="${v}"
+						break
+					fi
+				fi
+			done
+			;;
+
+
+
+		^* )
+			selector="${selector:1}"
+			# filter list only starting with selector AND check if selector exist as is in the orignal list
+			filtered_list=
+			for v in ${list}; do
+				case ${v} in
+					# selector exist in list
+					${selector}) 	flag=1;;
+					# matching version in list starting with ${selector}
+					${selector}*) filtered_list="${filtered_list} ${v}";;
+				esac
+			done
+			sorted_list="$(__sort_version "${selector} ${filtered_list}" "DESC ${opt}")"
+			result="$(echo $sorted_list | cut -d' ' -f 1)"
+			# if selector is the result (equal), we use it onlfy if selector exist as is in the orignal list
+			if [ "${result}" = "${selector}" ]; then
+				[ ! "${flag}" = "1" ] && result=
+			fi
+			;;
+
+		* )
+			# check if exact version exist
+			for v in ${list}; do
+				if [ "${v}" = "${selector}" ]; then
+					result="${v}"
+					break;
+				fi
+			done
+			;;
+	esac
+	echo "${result}"
+}
 
 # sort a list of version
 
@@ -106,15 +492,15 @@ __get_last_version() {
 # > 1.10.2.2 1.10.2.1 1.10.2 1.10.1.1 1.10.1 1.10.1beta2 1.10.1beta1 1.10.1alpha1 1.10.0 1.10.0RC2 1.10.0RC1 1.9.0
 
 
-# NOTE : ending characters in a version number may be ordered in the opposite way example :
-# 1.0.1 is more recent than 1.0.1beta so in ASC : 1.0.1beta 1.0.1 and in DESC : 1.0.1 1.0.1beta
-# To activate this behaviour use "ENDING_CHAR_REVERSE" option
-# we also need to indicate separator only if we use ENDING_CHAR_REVERSE and if there is any separator (obviously)
+# NOTE : ending characters in a version number can be ordered in the opposite way example :
+# 			1.0.1 is more recent than 1.0.1beta so in ASC : 1.0.1beta 1.0.1 and in DESC : 1.0.1 1.0.1beta
+# 			To activate this behaviour use "ENDING_CHAR_REVERSE" option
+# 			we must indicate separator with SEP if we use ENDING_CHAR_REVERSE and if there is any separator (obviously)
 __sort_version() {
 	local list=$1
 	local opt="$2"
 
-	local opposite_order_for_ending_chars=OFF
+	local opposite_order_for_ending_chars="OFF"
 	local mode="ASC"
 
 	local separator=
@@ -773,7 +1159,21 @@ __trim() {
 # http://stackoverflow.com/a/20460402
 __string_contains() { [ -z "${1##*$2*}" ] && [ -n "$1" -o -z "$2" ]; }
 
-
+# return 0 if list contains items, else 1
+# __list_contains "aa bb xx" "bb" 
+# echo $? ==> 0
+# __list_contains "aa bb xx" "b" 
+# echo $? ==> 1
+# __list_contains "aa bb xx" "bb xx" 
+# echo $? ==> 0
+# __list_contains "aa bb xx" "aa xx" 
+# echo $? ==> 1
+# https://stackoverflow.com/a/20473191/5027535
+__list_contains() {
+  local _list="$1"
+  local _item="$2"
+  [[ "$_list" =~ (^|[[:space:]])"$_item"($|[[:space:]]) ]]
+}
 
 __get_stella_version() {
 	local _stella_root_="$1"
@@ -1117,10 +1517,10 @@ __abs_to_rel_path() {
 		esac
 	fi
 
-	if [ "${result:(-1)}" = "/" ]; then
-		result=${result%?}
+	if [ ${result:(-1)} = "/" ]; then
+		result="${result%?}"
 	fi
-	echo "$result"
+	echo "${result}"
 
 }
 
@@ -1310,12 +1710,12 @@ __resource() {
 	if [ "$_opt_delete" = "OFF" ]; then
 		# strip root folder mode
 		_STRIP=
-		[ "$_opt_strip" = "ON" ] && _STRIP=STRIP
+		[ "$_opt_strip" = "ON" ] && _STRIP="STRIP"
 
 
 		_FLAG=1
-		case $PROTOCOL in
-			HTTP_ZIP|FILE_ZIP)
+		case ${PROTOCOL} in
+			HTTP_ZIP|FILE_ZIP )
 				[ "$_opt_revert" = "ON" ] && __log "INFO" "REVERT Not supported with this protocol" && _FLAG=0
 				[ "$_opt_update" = "ON" ] && __log "INFO" "UPDATE Not supported with this protocol" && _FLAG=0
 				if [ -d "$FINAL_DESTINATION" ]; then
@@ -1334,7 +1734,7 @@ __resource() {
 					fi
 				fi
 				;;
-			HTTP|FILE)
+			HTTP|FILE )
 				[ "$_opt_strip" = "ON" ] && __log "INFO" "STRIP option not in use"
 				[ "$_opt_revert" = "ON" ] && __log "INFO" "REVERT Not supported with this protocol" && _FLAG=0
 				[ "$_opt_update" = "ON" ] && __log "INFO" "UPDATE Not supported with this protocol" && _FLAG=0
@@ -1350,7 +1750,7 @@ __resource() {
 					fi
 				fi
 				;;
-			HG|GIT)
+			HG|GIT )
 				[ "$_opt_strip" = "ON" ] && __log "INFO" "STRIP option not supported with this protocol"
 				[ "$_opt_merge" = "ON" ] && __log "INFO" "MERGE option not supported with this protocol"
 				if [ -d "$FINAL_DESTINATION" ]; then
@@ -1369,46 +1769,46 @@ __resource() {
 	if [ "$_FLAG" = "1" ]; then
 		[ ! -d $FINAL_DESTINATION ] && mkdir -p $FINAL_DESTINATION
 
-		case $PROTOCOL in
-			HTTP_ZIP)
+		case ${PROTOCOL} in
+			HTTP_ZIP )
 				if [ "$_opt_get" = "ON" ]; then __download_uncompress "$URI" "$_download_filename" "$FINAL_DESTINATION" "$_STRIP"; fi
 				if [ "$_opt_merge" = "ON" ]; then echo 1 > "$FINAL_DESTINATION/._MERGED_$NAME"; fi
 				;;
-			HTTP)
+			HTTP )
 				# HTTP protocol use always merge by default : because it never erase destination folder
 				# but the 'merged' flag file will be created only if we pass the option MERGE
 				if [ "$_opt_get" = "ON" ]; then __download "$URI" "$_download_filename" "$FINAL_DESTINATION"; fi
 				if [ "$_opt_merge" = "ON" ]; then echo 1 > "$FINAL_DESTINATION/._MERGED_$NAME"; fi
 				;;
-			HG)
+			HG )
 				if [ "$_opt_revert" = "ON" ]; then cd "$FINAL_DESTINATION"; hg revert --all -C; fi
 				if [ "$_opt_update" = "ON" ]; then cd "$FINAL_DESTINATION"; hg pull; hg update $_checkout_version; fi
 				if [ "$_opt_get" = "ON" ]; then hg clone $URI "$FINAL_DESTINATION"; if [ ! "$_checkout_version" = "" ]; then cd "$FINAL_DESTINATION"; hg update $_checkout_version; fi; fi
 				# [ "$_opt_merge" = "ON" ] && echo 1 > "$FINAL_DESTINATION/._MERGED_$NAME"
 				;;
-			GIT)
+			GIT )
 				__require "git" "git" "SYSTEM"
 				if [ "$_opt_revert" = "ON" ]; then cd "$FINAL_DESTINATION"; git reset --hard; fi
 				if [ "$_opt_update" = "ON" ]; then cd "$FINAL_DESTINATION"; git pull;if [ ! "$_checkout_version" = "" ]; then git checkout $_checkout_version; fi; fi
 				if [ "$_opt_get" = "ON" ]; then git clone --recursive $URI "$FINAL_DESTINATION"; if [ ! "$_checkout_version" = "" ]; then cd "$FINAL_DESTINATION"; git checkout $_checkout_version; fi; fi
 				# [ "$_opt_merge" = "ON" ] && echo 1 > "$FINAL_DESTINATION/._MERGED_$NAME"
 				;;
-			FILE)
+			FILE )
 				if [ "$_opt_get" = "ON" ]; then __copy_folder_content_into "$URI" "$FINAL_DESTINATION"; fi
 				if [ "$_opt_merge" = "ON" ]; then echo 1 > "$FINAL_DESTINATION/._MERGED_$NAME"; fi
 				;;
-			FILE_ZIP)
-				__uncompress "$URI" "$FINAL_DESTINATION%" "$_STRIP"
+			FILE_ZIP )
+				__uncompress "$URI" "$FINAL_DESTINATION" "$_STRIP"
 				if [ "$_opt_merge" = "ON" ]; then echo 1 > "$FINAL_DESTINATION/._MERGED_$NAME"; fi
 				;;
-			*)
+			* )
 				__log "INFO" " ** ERROR Unknow protocol"
 				;;
 		esac
 	fi
 }
 
-#DOWNLOAD AND ZIP FUNCTIONS---------------------------------------------------
+# DOWNLOAD AND ZIP FUNCTIONS---------------------------------------------------
 __download_uncompress() {
 	local URL
 	local FILE_NAME
@@ -1423,7 +1823,7 @@ __download_uncompress() {
 	OPT="$4"
 
 
-	if [ "$FILE_NAME" = "_AUTO_" ]; then
+	if [ "${FILE_NAME}" = "_AUTO_" ]; then
 		#_AFTER_SLASH=${URL##*/}
 		FILE_NAME=$(__get_filename_from_url "$URL")
 		__log "INFO" "** Guessed file name is $FILE_NAME"
@@ -1709,8 +2109,9 @@ __mercurial_project_version() {
 	fi
 }
 
+# NOTE git "--first-parent" option needs git version >= 1.8.4
 __git_project_version() {
-	local _PATH=$1
+	local _path=$1
 	local _OPT=$2
 
 	_opt_version_short=ON
@@ -1720,12 +2121,14 @@ __git_project_version() {
 		[ "$o" = "LONG" ] && _opt_version_long=ON && _opt_version_short=OFF
 	done
 
-	if [[ -n `which git 2> /dev/null` ]]; then
-		if [ "$_opt_version_long" = "ON" ]; then
-			echo "$(git --git-dir "$_PATH/.git" describe --tags --long --always --first-parent)"
-		fi
-		if [ "$_opt_version_short" = "ON" ]; then
-			echo "$(git --git-dir "$_PATH/.git" describe --tags --abbrev=0 --always --first-parent)"
+	if [ -d "${_path}/.git" ]; then
+		if [[ -n `which git 2> /dev/null` ]]; then
+			if [ "$_opt_version_long" = "ON" ]; then
+				echo "$(git --git-dir "${_path}/.git" describe --tags --long --always --first-parent)"
+			fi
+			if [ "$_opt_version_short" = "ON" ]; then
+				echo "$(git --git-dir "${_path}/.git" describe --tags --abbrev=0 --always --first-parent)"
+			fi
 		fi
 	fi
 }
@@ -2022,9 +2425,9 @@ __argparse(){
 	local LONG_DESCRIPTION="$5"
 	local OPT="$6"
 	# available options
-	#		EXTRA_PARAMETER : a variable name which will contains non parsed parameter (parameter before -- which are not defined)
-	#		EXTRA_ARG : a variable name which will contains a string with EXTRA ARG (arguments after --)
-	#		EXTRA_ARG_EVAL : a variable name which will contains a string to evalute, that will set variable '$@' with EXTRA ARG (arguments after --)
+	#		EXTRA_PARAMETER : a variable name which will contains non parsed parameter (parameter BEFORE -- which are not defined)
+	#		EXTRA_ARG : a variable name which will contains a string with EXTRA ARG (arguments AFTER --)
+	#		EXTRA_ARG_EVAL : a variable name which will contains a string (arguments AFTER --) to be evaluted, that will set variable '$@' with EXTRA ARG
 	#		see samples in test/argparse/sample-app.sh
 
 	shift 6

@@ -4,6 +4,7 @@ _STELLA_CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 #shellcheck source=conf.sh
 . "$_STELLA_CURRENT_FILE_DIR"/conf.sh
 
+
 # NOTE : use "env" with source (or .) command only
 # NOTE : warn : some env var (like PATH) are cumulative
 if [ "$1" = "env" ]; then
@@ -96,7 +97,7 @@ HIDDEN=''                       	''    		''            		b     		0     		'1'    
 SUDO=''                       	''    		''            		b     		0     		'1'           			Execute as sudo.
 SCRIPT=''                   ''          'path'              s           0           ''                      Script path.
 "
-__argparse "${BASH_SOURCE[0]}" "$OPTIONS" "$PARAMETERS" "Stella" "$(usage)" "EXTRA_ARG OTHERARG" "$@"
+__argparse "${BASH_SOURCE[0]}" "$OPTIONS" "$PARAMETERS" "Stella" "$(usage)" "EXTRA_ARG OTHERARG EXTRA_ARG_EVAL OTHERARG_EVAL" "$@"
 
 
 # --------------- APP ----------------------------
@@ -251,9 +252,9 @@ if [ "$DOMAIN" = "boot" ]; then
 
 	if [ "$ACTION" = "cmd" ]; then
 		if [ "$STELLA_APP_IS_STELLA" = "1" ]; then
-			__boot_stella_cmd "$ID" "$OTHERARG" "$_options"
+			__boot_stella_cmd "$ID" "$OTHERARG_EVAL" "$_options"
 		else
-			__boot_app_cmd "$ID" "$OTHERARG" "$_options"
+			__boot_app_cmd "$ID" "$OTHERARG_EVAL" "$_options"
 		fi
 	fi
 	if [ "$ACTION" = "shell" ]; then
@@ -269,9 +270,9 @@ if [ "$DOMAIN" = "boot" ]; then
 			exit 1
 		fi
 		if [ "$STELLA_APP_IS_STELLA" = "1" ]; then
-			__boot_stella_script "$ID" "$SCRIPT" "$OTHERARG" "$_options"
+			__boot_stella_script "$ID" "$SCRIPT" "$OTHERARG_EVAL" "$_options"
 		else
-			__boot_app_script "$ID" "$SCRIPT" "$OTHERARG" "$_options"
+			__boot_app_script "$ID" "$SCRIPT" "$OTHERARG_EVAL" "$_options"
 		fi
 	fi
 fi

@@ -1,4 +1,4 @@
-#!sh
+# shellcheck shell=bash
 if [ ! "$_STELLA_COMMON_NET_INCLUDED_" = "1" ]; then
 _STELLA_COMMON_NET_INCLUDED_=1
 
@@ -356,6 +356,118 @@ $(command minikube "$@");
 }
 
 # -------------------- FUNCTIONS-----------------
+
+
+# https://unix.stackexchange.com/questions/55913/whats-the-easiest-way-to-find-an-unused-local-port
+# return a list separated by space of free tcp/udp ports
+# PARAMETERS
+# nb port to find
+# OPTIONS :
+# TCP - find a TCP port (default)
+# UDP - find an UDP port
+# CONSECUTIVE - return a list of consecutive port
+# RANGE_BEGIN - range of port begin
+# RANGE_END - range of port end
+# EXCLUDE_LIST_BEGIN - begin of a list of port to exclude
+# EXCLUDE_LIST_END - begin of a list of port to exclude
+# SAMPLE :
+#	__find_free_port "2"
+#	__find_free_port "2" "UDP"
+#	__find_free_port "3" "CONSECUTIVE"
+#	__find_free_port "2" "TCP RANGE_BEGIN 640 RANGE_END 650 EXCLUDE_LIST_BEGIN 602 603 645 642 641 644 646 650 EXCLUDE_LIST_END CONSECUTIVE"
+__find_free_port() {
+	local ports="${1:-1}"
+	local __opt="$2"
+
+	local range_begin="2048"
+	local range_end="65535"
+	local __flag_begin=
+	local __flag_end=
+	local __exclude_list=
+	local __flag_exclude=
+	local __flag_consecutive=
+	local __protocol="tcp"
+
+	for o in $__opt; do
+		[ "$__flag_begin" = "ON" ] && range_begin="$o" && __flag_begin=
+		[ "$o" = "RANGE_BEGIN" ] && __flag_begin="ON"
+		[ "$__flag_end" = "ON" ] && range_end="$o" && __flag_end=
+		[ "$o" = "RANGE_END" ] && __flag_end="ON"
+
+		[ "$o" = "EXCLUDE_LIST_END" ] && __flag_exclude=
+		[ "$__flag_exclude" = "ON" ] && __exclude_list="$__exclude_list $o"
+		[ "$o" = "EXCLUDE_LIST_BEGIN" ] && __flag_exclude="ON" && __flag_begin= && __flag_end=
+
+		[ "$o" = "CONSECUTIVE" ] && __flag_consecutive="CONSECUTIVE" && __flag_exclude= && __flag_begin= && __flag_end=
+		[ "$o" = "TCP" ] && __protocol="tcp" && __flag_exclude= && __flag_begin= && __flag_end=
+		[ "$o" = "UDP" ] && __protocol="udp" && __flag_exclude= && __flag_begin= && __flag_end=
+	done
+
+	case $STELLA_CURRENT_PLATFORM in
+		darwin )
+			[ "$range_begin" = "" ] && range_begin="2048"
+			[ "$range_end" = "" ] && range_end="65535"
+			;;
+		* )
+			# On unix, to find authorized plage and use it as RANGE_BEGIN and RANGE_END value use
+			# values in /proc/sys/net/ipv4/ip_local_port_range
+			if [ -f "/proc/sys/net/ipv4/ip_local_port_range" ]; then
+				read _begin _end < /proc/sys/net/ipv4/ip_local_port_range
+				[ "$range_begin" = "" ] && range_begin="$_begin"
+				[ "$range_end" = "" ] && range_end="$_end"
+			else
+				[ "$range_begin" = "" ] && range_begin="2048"
+				[ "$range_end" = "" ] && range_end="65535"
+			fi
+			;;
+	esac
+
+
+
+	# TODO : implement netstat alternatives : https://linuxize.com/post/check-listening-ports-linux/
+	local taken_ports
+	if [ "$__protocol" = "tcp" ]; then
+		taken_ports=( $( netstat -aln | egrep ^$__protocol | fgrep LISTEN | awk '{print $4}' | egrep -o '[0-9]+$' ) )
+	else
+		taken_ports=( $( netstat -aln | egrep ^$__protocol | awk '{print $4}' | egrep -o '[0-9]+$' ) )
+	fi
+
+	__random_number_list_from_range "$ports" "$range_begin" "$range_end" "$__flag_consecutive EXCLUDE_LIST_BEGIN ${taken_ports[@]} $__exclude_list EXCLUDE_LIST_END"
+
+}
+
+# https://stackoverflow.com/a/14701003/5027535
+# return TRUE if port is open
+# return FALSE if port is unreachable
+#	return nothing if we cannot test
+__check_tcp_port_open() {
+	local __host="$1"
+	local __port="$2"
+	# timeout time for check, default 3 sec
+	local __timeout="$3"
+
+	[ "${__timeout}" = "" ] && __timeout=3
+
+	# NOTE : nc is present by default on MacOS
+	type nc &>/dev/null
+	if [ $? = 0 ]; then
+		nc -w ${__timeout} -v ${__host} ${__port} </dev/null 2>/dev/null
+		[ $? = 0 ] && echo "TRUE" || echo "FALSE"
+	else
+		type timeout &>/dev/null
+		if [ $? = 0 ]; then
+			 timeout ${__timeout} bash -c "</dev/tcp/${__host}/${__port}"
+			 [ $? = 0 ] && echo "TRUE" || echo "FALSE"
+		else
+			# TODO : timeout nor nc are present we cannot check tcp port is open or not
+			echo ""
+		fi
+
+	fi
+
+}
+
+
 # support ssh:// and vagrant://
 # OPTIONS :
 #			SHARED : create a shared ssh connection for targeted host for a few time
@@ -426,6 +538,7 @@ __vagrant_get_ssh_options() {
 
 
 # TODO : these functions support only ipv4
+# https://stackoverflow.com/a/33550399
 __get_network_info() {
 	#local _err=
 	type netstat &>/dev/null
@@ -446,8 +559,15 @@ __get_network_info() {
 		STELLA_HOST_IP=$(ifconfig | grep -Eo 'inet (adr:|addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*')
 	else
 		type ip &>/dev/null
-		[ $? = 0 ] && STELLA_HOST_IP="$(ip -o -4 addr | awk '{split($4, a, "/"); print a[1]}')"
+		if [ $? = 0 ]; then
+			STELLA_HOST_IP="$(ip -o -4 addr | awk '{split($4, a, "/"); print a[1]}')"
+		else
+			# do not work on macos
+			type hostname &>/dev/null
+			[ $? = 0 ] && STELLA_HOST_IP="$(hostname -I 2>/dev/null)"
+		fi
 	fi
+
 }
 
 __get_ip_from_interface() {

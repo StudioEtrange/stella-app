@@ -2,6 +2,8 @@ if [ ! "$_ORACLEJDK_INCLUDED_" = "1" ]; then
 _ORACLEJDK_INCLUDED_=1
 
 
+# NOTE : cant use this recipe cause we cant download oracle jdk
+
 # Recipe for Oracle Java SE Development Kit (=JDK)
 
 # NOTE : Java Runtime Environment (=JRE) is only a java runtime
@@ -17,7 +19,7 @@ feature_oracle-jdk() {
 	FEAT_DEFAULT_FLAVOUR=binary
 }
 
-feature_oraclesejdk_env() {
+feature_oracle-jdk_env() {
 	export JAVA_HOME=$FEAT_INSTALL_ROOT
 }
 
@@ -58,7 +60,7 @@ feature_oracle-jdk_8u152() {
 
 	FEAT_SOURCE_CALLBACK=
 	FEAT_BINARY_CALLBACK=feature_oracle-jdk_fix_jni_header
-	FEAT_ENV_CALLBACK=feature_oraclesejdk_env
+	FEAT_ENV_CALLBACK=feature_oracle-jdk_env
 
 	FEAT_INSTALL_TEST="$FEAT_INSTALL_ROOT/bin/java"
 	FEAT_SEARCH_PATH="$FEAT_INSTALL_ROOT/bin"
@@ -100,7 +102,7 @@ feature_oracle-jdk_8u91() {
 
 	FEAT_SOURCE_CALLBACK=
 	FEAT_BINARY_CALLBACK=feature_oracle-jdk_fix_jni_header
-	FEAT_ENV_CALLBACK=feature_oraclesejdk_env
+	FEAT_ENV_CALLBACK=feature_oracle-jdk_env
 
 	FEAT_INSTALL_TEST="$FEAT_INSTALL_ROOT/bin/java"
 	FEAT_SEARCH_PATH="$FEAT_INSTALL_ROOT/bin"
@@ -144,13 +146,13 @@ feature_oracle-jdk_8u45() {
 
 	FEAT_SOURCE_CALLBACK=
 	FEAT_BINARY_CALLBACK=feature_oracle-jdk_fix_jni_header
-	FEAT_ENV_CALLBACK=feature_oraclesejdk_env
+	FEAT_ENV_CALLBACK=feature_oracle-jdk_env
 
 	FEAT_INSTALL_TEST="$FEAT_INSTALL_ROOT/bin/java"
 	FEAT_SEARCH_PATH="$FEAT_INSTALL_ROOT/bin"
 }
 
-# 
+#
 feature_oracle-jdk_7u80() {
 	FEAT_VERSION=7u80
 
@@ -188,7 +190,7 @@ feature_oracle-jdk_7u80() {
 
 	FEAT_SOURCE_CALLBACK=
 	FEAT_BINARY_CALLBACK=feature_oracle-jdk_fix_jni_header
-	FEAT_ENV_CALLBACK=feature_oraclesejdk_env
+	FEAT_ENV_CALLBACK=feature_oracle-jdk_env
 
 	FEAT_INSTALL_TEST="$FEAT_INSTALL_ROOT/bin/java"
 	FEAT_SEARCH_PATH="$FEAT_INSTALL_ROOT/bin"
@@ -214,7 +216,9 @@ feature_oracle-jdk_install_binary() {
 	mkdir -p "$STELLA_APP_CACHE_DIR"
 	if [ "$STELLA_CURRENT_PLATFORM" = "linux" ]; then
 		if [ ! -f "$STELLA_APP_CACHE_DIR/$FEAT_BINARY_URL_FILENAME" ]; then
-			wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" "$FEAT_BINARY_URL" -O "$STELLA_APP_CACHE_DIR/$FEAT_BINARY_URL_FILENAME"
+			type wget &>/dev/null && wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" "$FEAT_BINARY_URL" -O "$STELLA_APP_CACHE_DIR/$FEAT_BINARY_URL_FILENAME" \
+			    ||  curl -j -k -S -L -H "gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" -o "$STELLA_APP_CACHE_DIR/$FEAT_BINARY_URL_FILENAME" "$FEAT_BINARY_URL"
+			
 		fi
 		__uncompress "$STELLA_APP_CACHE_DIR/$FEAT_BINARY_URL_FILENAME" "$FEAT_INSTALL_ROOT" "DEST_ERASE STRIP"
 	fi
@@ -227,8 +231,7 @@ feature_oracle-jdk_install_binary() {
 
 		# download
 		if [ ! -f "$STELLA_APP_CACHE_DIR/$FEAT_BINARY_URL_FILENAME" ]; then
-			# TODO : check cookie (twice the same)
-			curl -j -k -S -L -H "Cookie: oraclelicense=accept-securebackup-cookie; oraclelicense=accept-securebackup-cookie" -o "$STELLA_APP_CACHE_DIR/$FEAT_BINARY_URL_FILENAME" "$FEAT_BINARY_URL"
+			curl -j -k -S -L -H "gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" -o "$STELLA_APP_CACHE_DIR/$FEAT_BINARY_URL_FILENAME" "$FEAT_BINARY_URL"
 		fi
 
 
