@@ -131,6 +131,7 @@ function usage() {
   echo "L     start <registrator|proxy|proxygen> : start service"
   echo "L     stop <registrator|proxy|proxygen> : stop service"
   echo "L     status <registrator|proxy|proxygen> : give service status info"
+  echo "L     resync registrator [--version=<version>] [--consul=<uri>] [--serviceip=<ip>|--serviceif=<interface>] [-- additional docker run options] : resync container with consul. During time : 5seconds"
   echo "L     shell <registrator|proxy|proxygen> : launch a shell inside running service"
   echo "L     destroy <registrator|proxy> [--version=<version>] : destroy service"
   echo "o-- options :"
@@ -145,7 +146,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy' '1'
+ACTION=											'' 			a				'resync create start stop status shell destroy' '1'
 TARGET=											'' 			a				'registrator proxy proxygen' '1'
 "
 OPTIONS="
@@ -267,6 +268,30 @@ if [ "$ACTION" = "create" ]; then
             -template="/tmp/nginx.ctmpl:/etc/nginx/conf.d/default.conf:docker kill -s HUP ${DEFAULT_SERVICE_NAME}-proxy"
         ;;
     esac
+fi
+
+if [ "$ACTION" = "resync" ]; then
+    if [ "$TARGET" = "registrator" ]; then
+      __compute_var "registrator"
+      $STELLA_API uri_parse "$CONSUL"
+
+      [ ! "$SERVICEIF" = "" ] && SERVICEIP="$($STELLA_API get_ip_from_interface $SERVICEIF)"
+
+       echo "** Try to resync container with discovery service in a window time of 5 seconds"
+      if [ "$SERVICEIP" = "" ]; then
+        __log_run docker exec \
+          $DOCKERARG \
+          -t \
+          $SERVICE_NAME \
+          timeout -t 5 sh -c "registrator -retry-attempts=0 -retry-interval=2000 -cleanup consul://$__stella_uri_address"
+      else
+        __log_run docker exec \
+          $DOCKERARG \
+          -t \
+          $SERVICE_NAME \
+          timeout -t 5 sh -c "registrator -retry-attempts=0 -retry-interval=2000 -cleanup -ip=$SERVICEIP consul://$__stella_uri_address"
+      fi
+    fi
 fi
 
 if [ "$ACTION" = "start" ]; then
