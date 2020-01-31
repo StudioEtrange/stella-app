@@ -6,6 +6,16 @@ STELLA_APP_PROPERTIES_FILENAME="netdata-service.properties"
 
 # https://github.com/containrrr/watchtower
 
+
+# sample
+
+# Time in seconds to watch newer container
+# DEFAULT_WATCHTOWER_INTERVAL="300"
+# __interval="$DEFAULT_WATCHTOWER_INTERVAL"
+# WATCHTOWER_OPT="--cleanup --label-enable --interval ${__interval}"
+# ./watchtower-service.sh create $_OPT --opt="${WATCHTOWER_OPT}"
+
+
 # SERVICE INFO --------------------------------------
 DEFAULT_SERVICE_NAME="watchtower-service"
 
