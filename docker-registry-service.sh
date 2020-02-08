@@ -124,8 +124,8 @@ SERVICE_NAME="$DEFAULT_SERVICE_NAME"
 $STELLA_API require "docker" "docker" "SYSTEM"
 case $ACTION in
   create|start|stop|destroy|status|shell )
-    $STELLA_API require "docker-compose" "docker-compose" "STELLA_FEATURE"
-    COMPOSE_FILE="${COMPOSE}"
+    $STELLA_API get_feature "docker-compose" "docker-compose" "STELLA_FEATURE"
+    COMPOSE_FILE="$($STELLA_API rel_to_abs_path ${COMPOSE} ${_CURRENT_RUNNING_DIR})"
     if [ ! -f "${COMPOSE_FILE}" ]; then
       echo "** ERROR : Compose file ${COMPOSE_FILE} do not exist"
       exit 1
