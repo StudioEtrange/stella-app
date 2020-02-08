@@ -23,13 +23,13 @@ DEFAULT_SERVICE_NAME="cloud9-tool"
 # DOCKER IMAGES INFO --------------------------------------
 DEFAULT_DOCKER_IMAGE="sapk/cloud9"
 DEFAULT_DOCKER_IMAGE_VERSION="alpine"
-DEFAULT_DOCKER_PLUGIN_BINDFS="studioetrange/bindfs:1.0"
+DEFAULT_DOCKER_PLUGIN_BINDFS="studioetrange/bindfs:1.1"
 
 # USAGE --------------------------------------
 function usage() {
   echo "USAGE :"
   echo "cloud9 IDE as a docker container on current host to get a web IDE for developement"
-  echo "NOTE : require docker on your system"
+  echo "NOTE : require docker on your system -- use docker plugin studioetrange/bindfs to map your current user to acces folder mounted as volume (workspace)"
   echo "----------------"
   echo "o-- command :"
   echo "L     create [--version=<version>] [--http=<port>] [--workspace=<path>] [--login=<string>] [--password=<string>] : create & launch tool (must be use once before starting/stopping tool)"
@@ -41,7 +41,7 @@ function usage() {
   echo "L     destroy : destroy tool"
   echo "o-- options :"
   echo "L     --http : cloud9 http port"
-  echo "L     --workspace : Mounted workspace folder into cloud9. File permissions used inside that folder are yours"
+  echo "L     --workspace : Mounted workspace folder into cloud9. File permissions used inside that folder are yours (using docker plugin studioetrange/bindfs)"
   echo "L     --login : optional login protection"
   echo "L     --password : optional password protection"
   echo "L     --version : cloud9 image version"
