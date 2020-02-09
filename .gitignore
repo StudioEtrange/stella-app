@@ -1,4 +1,4 @@
 .DS_Store
 cache/
-workspace/
+*workspace/
 .vscode/
