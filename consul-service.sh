@@ -5,8 +5,10 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
 
-# NOTE : consul agent server expect only 1 agent server to do the quorum. It is recommanded to use at least 3
-# on consul agent server, an UI is activated, see http://host:8500/ui
+# NOTE : 
+#       - It is recommanded to use at least 3 agent server to have a quorum. Here we force the minimum with one server
+#       - on consul agent server, an UI is activated, see http://host:8500/ui
+#       - this recipe bind consul to host with --net=host, so containers are binded to host
 
 # Example with docker-machine
 # docker-machine create test
@@ -20,6 +22,16 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 # ./consul-service.sh create 2 client -m --joinid=1
 # ./consul-service.sh list 1 members
 
+
+
+# Example on linux
+# ./consul-service.sh create 1 server -d --http=8500
+# ./consul-service.sh create 2 client -d --joinid=1
+# ./consul-service.sh members 1
+# ./consul-service.sh logs 1
+# ./consul-service.sh logs 2
+# ./consul-service.sh destroy 1
+# ./consul-service.sh destroy 2
 
 # NOTE :
 # Consul should be run with --net=host in Docker because Consul's consensus and gossip protocols are sensitive to delays and packet loss,
@@ -59,7 +71,7 @@ function usage() {
   echo "L     shell <id> : launch a shell inside running service"
   echo "L     destroy <id> [--version=<version>] [--nopurge] : destroy service"
   echo "L     logs <id> : give service status info"
-  echo "L     list <id> members : will list consul cluster members, by connecting to an agent <id> (1 by default)"
+  echo "L     members <id> [--ip=<ip>] [--http=<port>] : will list consul cluster members, by connecting to an agent <id>"
   echo "L     purgedata <id> : erase any internal data volume attached to the service and/or folder storing data on host"
   echo "o-- options :"
   echo "L     --http : consul http api port"
@@ -78,9 +90,9 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy list purgedata logs' '1'
+ACTION=											'' 			a				'create start stop status shell destroy members purgedata logs' '1'
 ID=											'' 			s				'' '0'
-TARGET=											'' 			a				'client server members' '0'
+TARGET=											'' 			s				'' '0'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Consul http api port.
@@ -105,24 +117,13 @@ __log_run() {
 	"$@"
 }
 
-# TODO : migrate to stella api (this function exist inside stella api)
-# work even if we pass an ip
-__get_ip_from_hostname() {
-	type getent &>/dev/null
-	if [ $? = 0 ]; then
-		echo "$(getent ahostsv4 $1 | grep STREAM | head -n 1 | cut -d ' ' -f 1)"
-	else
-		echo "$(ping -q -c 1 -t 1 $1 2>/dev/null | grep -m 1 PING | cut -d "(" -f2 | cut -d ")" -f1)"
-	fi
-}
 
 # ------------- COMPUTE ARGUMENTS AND VALUES -------------------------
-[ "$ID" = "" ] && ID="1"
 DOCKER_IMAGE_VERSION=$VERSION
 DOCKER_URI=$DEFAULT_DOCKER_IMAGE
 [ ! -z "$DOCKER_IMAGE_VERSION" ] && DOCKER_URI=$DOCKER_URI:$DOCKER_IMAGE_VERSION
 SERVICE_NAME="${DEFAULT_SERVICE_NAME}"
-SERVICE_NAME"=${SERVICE_NAME}-${ID}"
+SERVICE_NAME="${SERVICE_NAME}-${ID}"
 SERVICE_DATA_NAME="${SERVICE_NAME}"
 
 
@@ -133,12 +134,25 @@ $STELLA_API require "docker" "docker" "SYSTEM"
 
 # ------------- ACTIONS -------------------------
 
-if [ "$ACTION" = "list" ]; then
-  case $TARGET in
-    members )
-       __log_run docker exec -t $SERVICE_NAME consul members
-    ;;
-  esac
+if [ "$ACTION" = "members" ]; then
+
+  # The default value is http://127.0.0.1:8500
+  if [ ! "$ID" = "" ]; then
+    JOINIP="$(docker inspect -f '{{.Config.Hostname}}' ${DEFAULT_SERVICE_NAME}-${ID})"
+  fi
+  # convert hostname to IP
+  if [ ! "$IP" = "" ] ; then
+    IP="$($STELLA_API get_ip_from_hostname $IP)"
+  else
+    if [ ! "$IF" = "" ]; then
+      IP="$($STELLA_API get_ip_from_interface $IF)"
+    else
+      IP="${STELLA_HOST_DEFAULT_IP}"
+    fi
+  fi
+
+  HTTP_ADDR="http://$IP:$HTTP"
+  __log_run docker exec -t $SERVICE_NAME consul members -http-addr="${HTTP_ADDR}"
 fi
 
 
@@ -173,7 +187,7 @@ if [ "$ACTION" = "create" ]; then
           
           if [ ! "$IP" = "" ]; then
 
-            CONSUL_AGENT_BIND_IP="$(__get_ip_from_hostname $IP)"
+            CONSUL_AGENT_BIND_IP="$($STELLA_API get_ip_from_hostname $IP)"
 
             __log_run docker run -d \
                 --name $SERVICE_NAME \
@@ -198,6 +212,9 @@ if [ "$ACTION" = "create" ]; then
                   -server -bootstrap-expect=1 -ui \
                   $_OPT
               else
+                # by default will try to bind to a default IP from the default interface
+                CONSUL_AGENT_BIND_IP="${STELLA_HOST_DEFAULT_IP}"
+
                 __log_run docker run -d \
                   --name $SERVICE_NAME \
                   --restart always \
@@ -206,8 +223,8 @@ if [ "$ACTION" = "create" ]; then
                   -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
                   $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
                   -server -bootstrap-expect=1 -ui \
+                  -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP \
                   $_OPT
-
               fi
           fi
         fi
@@ -218,11 +235,11 @@ if [ "$ACTION" = "create" ]; then
 
       client )
 
-        # convert hostname to IP
-        [ ! "$JOINIP" = "" ] && JOINIP="$(__get_ip_from_hostname $JOINIP)"
         if [ ! "$JOINID" = "" ]; then
-              JOINIP="$(docker inspect -f '{{.NetworkSettings.IPAddress}}' ${DEFAULT_SERVICE_NAME}-${JOINID})"
+          JOINIP="$(docker inspect -f '{{.Config.Hostname}}' ${DEFAULT_SERVICE_NAME}-${JOINID})"
         fi
+        # convert hostname to IP
+        [ ! "$JOINIP" = "" ] && JOINIP="$($STELLA_API get_ip_from_hostname $JOINIP)"
 
         if [ "$JOINIP" = "" ]; then
           echo "** ERROR : precise a consul IP to join with --joinip or an instance id with --joinid"
@@ -244,7 +261,7 @@ if [ "$ACTION" = "create" ]; then
         
 
           if [ ! "$IP" = "" ]; then
-            CONSUL_AGENT_BIND_IP="$(__get_ip_from_hostname $IP)"
+            CONSUL_AGENT_BIND_IP="$($STELLA_API get_ip_from_hostname $IP)"
 
             __log_run docker run -d \
               --name $SERVICE_NAME \
@@ -266,6 +283,10 @@ if [ "$ACTION" = "create" ]; then
                 $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
                 -retry-join=$JOINIP
             else
+              # by default will try to bind to a default IP from the default interface
+              CONSUL_AGENT_BIND_IP="${STELLA_HOST_DEFAULT_IP}"
+
+
               __log_run docker run -d \
                 --name $SERVICE_NAME \
                 --restart always \
@@ -273,7 +294,7 @@ if [ "$ACTION" = "create" ]; then
                 -v $SERVICE_DATA_NAME:/consul/data \
                 -e 'CONSUL_LOCAL_CONFIG={"leave_on_terminate": true, "disable_update_check": true}' \
                 $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=$HTTP -dns-port=$DNS \
-                -retry-join=$JOINIP
+                -retry-join=$JOINIP -bind=$CONSUL_AGENT_BIND_IP -client=$CONSUL_AGENT_BIND_IP
             fi
           fi
         fi
