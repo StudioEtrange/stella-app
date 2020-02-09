@@ -227,8 +227,8 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "status" ]; then
-  #docker stats $SERVICE_NAME
-  __log_run docker ps | grep $SERVICE_NAME
+  cd "$COMPOSE_FILE_ROOT"
+  __log_run docker-compose $DOCKER_COMPOSE_OPT ps
 fi
 
 if [ "$ACTION" = "info" ]; then
@@ -236,7 +236,7 @@ if [ "$ACTION" = "info" ]; then
 fi
 
 if [ "$ACTION" = "logs" ]; then
-  __log_run docker logs -f $SERVICE_NAME
+  __log_run docker logs $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "list" ]; then

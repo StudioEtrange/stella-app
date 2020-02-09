@@ -28,25 +28,27 @@ function usage() {
   echo "NOTE : can set a docker daemon with this registry as insecure registries."
   echo "----------------"
   echo "o-- command :"
-  echo "L     create [--registrypath=<path>] [--frontport=<port>] [--backport=<port>] [--name=<name>] [--compose=<path>]: create & launch service (must be use once before starting/stopping service)."
+  echo "L     create [--registrypath=<path>] [--frontport=<port>] [--backport=<port>] [--name=<name>] [--compose=<path>] : create & launch service (must be use once before starting/stopping service)."
   echo "L     start [--name=<name>] [--compose=<path>] : start service"
   echo "L     stop [--name=<name>] [--compose=<path>] : stop service"
   echo "L     status [--name=<name>] [--compose=<path>] : give service status info"
   echo "L     shell [--name=<name>] [--compose=<path>] : launch a shell inside running backend service"
-  echo "L     destroy [--storage] [--name=<name>] [--compose=<path>] : destroy service"
+  echo "L     destroy [--name=<name>] [--compose=<path>] [--storage] : destroy service"
   echo "L     insecure|secure [--registry=<schema://host:port>] : set a local docker daemon to use the registry as an insecure registry. OR remove this registry from insecure registry list."
+  echo "L     purgedata [--name=<name>] : erase any internal data volume attached to the service and/or folder storing data on host"
+  echo "L     logs [--name=<name>] [--compose=<path>] : show backend logs"
   echo "o-- options :"
   echo "L     --frontport : web ui frontend port"
   echo "L     --backport : registry port"
   echo "L     --registry : uri of the backend registry to set on the local docker daemon"
   echo "L     --debug : active some debug trace"
-  echo "L     --name : registry name"
+  echo "L     --name : a registry name/alias"
   echo "L     --compose : compose file"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy insecure secure' '1'
+ACTION=											'' 			a				'create start stop status shell destroy insecure secure logs purgedata' '1'
 "
 OPTIONS="
 REGISTRYPATH='${DEFAULT_REGISTRY_STORAGE_PATH}' 						'' 			'path'				s 			0			''		  Storage path.
@@ -123,7 +125,7 @@ SERVICE_NAME="$DEFAULT_SERVICE_NAME"
 
 $STELLA_API require "docker" "docker" "SYSTEM"
 case $ACTION in
-  create|start|stop|destroy|status|shell )
+  create|start|stop|destroy|status|shell|logs )
     $STELLA_API get_feature "docker-compose" "docker-compose" "STELLA_FEATURE"
     COMPOSE_FILE="$($STELLA_API rel_to_abs_path ${COMPOSE} ${_CURRENT_RUNNING_DIR})"
     if [ ! -f "${COMPOSE_FILE}" ]; then
@@ -184,6 +186,10 @@ if [ "$ACTION" = "destroy" ]; then
   [ "$STORAGE" = "1" ] && rm -Rf "$REGISTRY_STORAGE_PATH"
 fi
 
+if [ "$ACTION" = "purgedata" ]; then
+  rm -Rf "$REGISTRY_STORAGE_PATH"
+fi
+
 if [ "$ACTION" = "status" ]; then
   cd "$COMPOSE_FILE_ROOT"
   __log_run docker-compose $DOCKER_COMPOSE_OPT ps
@@ -194,6 +200,10 @@ if [ "$ACTION" = "shell" ]; then
   __log_run docker-compose $DOCKER_COMPOSE_OPT exec backend sh
 fi
 
+if [ "$ACTION" = "logs" ]; then
+  cd "$COMPOSE_FILE_ROOT"
+  __log_run docker-compose $DOCKER_COMPOSE_OPT logs backend
+fi
 
 if [ "$ACTION" = "insecure" ]; then
   __test_sudo

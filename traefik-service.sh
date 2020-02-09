@@ -30,9 +30,10 @@ function usage() {
   echo "L     create [--version=<version>] [--http=<port>] [--httpadmin=<port>] [--conf=<path>] [--docker] [-- <options>] : create & launch service (must be use once before starting/stopping service)"
   echo "L     start [--version=<version>] : start service"
   echo "L     stop [--version=<version>] : stop service"
+  echo "L     destroy : destroy service"
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
-  echo "L     destroy : destroy service"
+  echo "L     logs : show logs"
   echo "o-- options :"
   echo "L     --http : traefik http reverse proxy port (entry port)"
   echo "L     --httpadmin : traefik http admin port"
@@ -52,7 +53,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a			create start stop status shell destroy'  '1'
+ACTION=											'' 			a			create start stop status shell destroy logs'  '1'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Traefik http port (entry port).
@@ -137,7 +138,8 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "status" ]; then
-    __log_run docker stats $SERVICE_NAME
+  __log_run docker ps -a | grep $SERVICE_NAME
+  __log_run docker stats --no-stream $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "shell" ]; then
@@ -150,4 +152,8 @@ if [ "$ACTION" = "destroy" ]; then
   __log_run docker rm $SERVICE_NAME 2>/dev/null
   # remove image
   __log_run docker rmi $DOCKER_URI 2>/dev/null
+fi
+
+if [ "$ACTION" = "logs" ]; then
+  __log_run docker logs $SERVICE_NAME
 fi

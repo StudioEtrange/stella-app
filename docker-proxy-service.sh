@@ -35,8 +35,8 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 # eval $(docker-machine env test)
 
 # create base services :
-# ./consul-service.sh create server 1 -d --http=8500 --ip=$(docker-machine ip $DOCKER_MACHINE_NAME)
-# docker logs consul-service-server-1
+# ./consul-service.sh create 1 server -d --http=8500 --ip=$(docker-machine ip $DOCKER_MACHINE_NAME)
+# docker logs consul-service-1
 # ./docker-proxy-service.sh create registrator -d --consul=$(docker-machine ip $DOCKER_MACHINE_NAME):8500 --serviceip=$(docker-machine ip $DOCKER_MACHINE_NAME)
 # docker logs docker-proxy-service-registrator
 
@@ -318,7 +318,8 @@ fi
 if [ "$ACTION" = "destroy" ]; then
   case $TARGET in
     proxygen )
-      echo "** ERROR : use proxy instead. proxy & proxygen are destroyed together"
+      echo "** ERROR : proxy & proxygen are destroyed together"
+      echo "           use command : $0 destroy proxy"
       exit 1
     ;;
     proxy )
@@ -330,16 +331,14 @@ if [ "$ACTION" = "destroy" ]; then
       __compute_var "proxy"
       __log_run docker stop $SERVICE_NAME 2>/dev/null
       __log_run docker rm $SERVICE_NAME 2>/dev/null
-      __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
+      [ ! "${NOPURGE}" = "1" ] && __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
       __log_run docker rmi $DOCKER_URI 2>/dev/null
     ;;
 
-    *)
+    registrator )
       __compute_var "$TARGET"
-      # remove cntainers
       __log_run docker stop $SERVICE_NAME 2>/dev/null
       __log_run docker rm $SERVICE_NAME 2>/dev/null
-      [ "$TARGET" = "proxy" ] && __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
       # remove image
       __log_run docker rmi $DOCKER_URI 2>/dev/null
     ;;

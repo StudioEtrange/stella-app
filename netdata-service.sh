@@ -29,6 +29,7 @@ function usage() {
   echo "L     destroy [--version=<version>] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
+  echo "L     logs : show logs"
   echo "o-- options :"
   echo "L     --port : netdata listening port"
   echo "L     --ip : netdata listening ip (Use --ip OR --if. --if have priority)"
@@ -40,7 +41,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy'  '1'
+ACTION=											'' 			a				'create start stop status shell destroy logs'  '1'
 "
 OPTIONS="
 IP='$DEFAULT_IP' 						'' 			'string'				s 			0			''		  Listening netdata ip.
@@ -106,10 +107,14 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "status" ]; then
-  #docker stats $SERVICE_NAME
-  __log_run docker ps | grep $SERVICE_NAME
+  __log_run docker ps -a | grep $SERVICE_NAME
+  __log_run docker stats --no-stream $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "shell" ]; then
   __log_run docker exec -it $SERVICE_NAME sh
+fi
+
+if [ "$ACTION" = "logs" ]; then
+  __log_run docker logs $SERVICE_NAME
 fi

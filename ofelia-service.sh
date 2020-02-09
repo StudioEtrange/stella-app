@@ -233,8 +233,8 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "status" ]; then
-  #docker stats $SERVICE_NAME
-  __log_run docker ps | grep $SERVICE_NAME
+  __log_run docker ps -a | grep $SERVICE_NAME
+  __log_run docker stats --no-stream $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "info" ]; then

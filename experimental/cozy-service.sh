@@ -39,6 +39,7 @@ function usage() {
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
   echo "L     destroy : destroy service & data"
+  echo "L     logs : show logs"
   echo "o-- options :"
   echo "L     --http : cozy http port"
   echo "L     --https : cozy https port"
@@ -47,7 +48,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy'
+ACTION=											'' 			a				'create start stop status shell destroy logs'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Listening http port.
@@ -152,7 +153,8 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "status" ]; then
-  __log_run docker stats $SERVICE_NAME $SERVICE_DATA_NAME
+  __log_run docker ps -a | grep $SERVICE_NAME
+  __log_run docker stats --no-stream $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "shell" ]; then
@@ -172,4 +174,8 @@ if [ "$ACTION" = "destroy" ]; then
   __log_run docker rmi $DOCKER_URI 2>/dev/null
   # remove data
   rm -Rf $SERVICE_DATA_ROOT
+fi
+
+if [ "$ACTION" = "logs" ]; then
+  __log_run docker logs $SERVICE_NAME
 fi

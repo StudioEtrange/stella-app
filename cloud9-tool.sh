@@ -33,10 +33,11 @@ function usage() {
   echo "----------------"
   echo "o-- command :"
   echo "L     create [--version=<version>] [--http=<port>] [--workspace=<path>] [--login=<string>] [--password=<string>] : create & launch tool (must be use once before starting/stopping tool)"
-  echo "L     start [--version=<version>] : start tool"
-  echo "L     stop [--version=<version>] : stop tool"
+  echo "L     start : start tool"
+  echo "L     stop : stop tool"
   echo "L     status : give resource status"
   echo "L     info : get some service information"
+  echo "L     logs : show logs"
   echo "L     shell : launch a shell inside running tool"
   echo "L     destroy : destroy tool"
   echo "o-- options :"
@@ -50,7 +51,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'create start stop status shell destroy info' '1'
+ACTION=											'' 			a				'create start stop status shell destroy info logs' '1'
 "
 OPTIONS="
 HTTP='$DEFAULT_HTTP_PORT' 						'' 			'string'				s 			0			''		  Listening cloud9 http port.
@@ -160,7 +161,8 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "status" ]; then
-    __log_run docker stats $SERVICE_NAME
+  __log_run docker ps -a | grep $SERVICE_NAME
+  __log_run docker stats --no-stream $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "info" ]; then
@@ -179,4 +181,9 @@ if [ "$ACTION" = "destroy" ]; then
   __log_run docker volume rm "$SERVICE_DATA_NAME" 2>/dev/null
   # remove image
   __log_run docker rmi $DOCKER_URI 2>/dev/null
+fi
+
+
+if [ "$ACTION" = "logs" ]; then
+  __log_run docker logs $SERVICE_NAME
 fi

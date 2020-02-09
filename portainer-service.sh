@@ -20,26 +20,30 @@ function usage() {
   echo "NOTE : require docker on your system"
   echo "----------------"
   echo "o-- command :"
-  echo "L     create [--version=<version>] [--port=<port>] [-- additional docker run options] : create & launch service (must be use once before starting/stopping service)"
+  echo "L     create [--version=<version>] [--port=<port>] [--nopurge] [-- additional docker run options] : create & launch service (must be use once before starting/stopping service)"
   echo "L     start : start service"
   echo "L     stop : stop service"
-  echo "L     destroy [--version=<version>] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
+  echo "L     destroy [--version=<version>] [--nopurge] : stop, delete service and all image files. At next create, everything will be forced to be downloaded."
   echo "L     status : give service status info"
   echo "L     shell : launch a shell inside running service"
+  echo "L     logs : show logs"
+  echo "L     purgedata : erase any internal data volume attached to the service and/or folder storing data on host"
   echo "o-- options :"
   echo "L     --port : portainer listening port"
   echo "L     --version : portainer image version"
   echo "L     --debug : active some debug trace"
+  echo "L     --nopurge : do not erase any internal data volume attached to service while create/destroy"
 }
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a			'create start stop status shell destroy'  '1' Action.
+ACTION=											'' 			a			'create start stop status shell destroy purgedata logs'  '1' Action.
 "
 OPTIONS="
 PORT='$DEFAULT_PORT' 						'' 			'string'				s 			0			''		  Listening port.
 VERSION='$DEFAULT_DOCKER_IMAGE_VERSION' 			'v' 			'string'				s 			0			''		  portainer image version .
 DEBUG=''            'd'    		''            		b     		0     		'1'           			Active some debug trace.
+NOPURGE=''            'n'    		''            		b     		0     		'1'           			Do not erase any internal data volume attached to service while create/destroy.
 "
 $STELLA_API argparse "$0" "$OPTIONS" "$PARAMETERS" "$STELLA_APP_NAME" "$(usage)" "EXTRA_ARG DOCKERARG" "$@"
 
@@ -64,7 +68,7 @@ if [ "$ACTION" = "create" ]; then
   # delete previously stored container
   __log_run docker stop $SERVICE_NAME 2>/dev/null
   __log_run docker rm $SERVICE_NAME 2>/dev/null
-  __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
+  [ ! "${NOPURGE}" = "1" ] && __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
 
   __log_run docker run -d \
               --name $SERVICE_NAME \
@@ -79,7 +83,7 @@ if [ "$ACTION" = "destroy" ]; then
   __log_run docker stop $SERVICE_NAME 2>/dev/null
   __log_run docker rm $SERVICE_NAME 2>/dev/null
   __log_run docker rmi $DOCKER_URI 2>/dev/null
-  __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
+  [ ! "${NOPURGE}" = "1" ] && __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
 fi
 
 if [ "$ACTION" = "start" ]; then
@@ -91,10 +95,18 @@ if [ "$ACTION" = "stop" ]; then
 fi
 
 if [ "$ACTION" = "status" ]; then
-  #docker stats $SERVICE_NAME
-  __log_run docker ps | grep $SERVICE_NAME
+  __log_run docker ps -a | grep $SERVICE_NAME
+  __log_run docker stats --no-stream $SERVICE_NAME
 fi
 
 if [ "$ACTION" = "shell" ]; then
   __log_run docker exec -it $SERVICE_NAME sh
+fi
+
+if [ "$ACTION" = "purgedata" ]; then
+  __log_run docker volume rm $SERVICE_DATA_NAME 2>/dev/null
+fi
+
+if [ "$ACTION" = "logs" ]; then
+  __log_run docker logs $SERVICE_NAME
 fi
