@@ -1,9 +1,17 @@
+
+
+# TODO do a full convert to stella-app
+
+# TODO do a full convert to stella-app
+
+# TODO do a full convert to stella-app
+
 # TODO do a full convert to stella-app
 
 #!/bin/bash
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
-source $_CURRENT_FILE_DIR/stella-link.sh include
+. $_CURRENT_FILE_DIR/stella-link.sh include
 
 # http://gitlab.acc.edf.fr/boucault-syl/docker-wekan-mgt
 # https://github.com/wekan/wekan/wiki/Install-Wekan-Docker-for-testing
@@ -47,25 +55,7 @@ export WEKAN_PORT=$WPORT
 # --------------- INSTALL ----------------------------
 if [ "$DOMAIN" == "install" ]; then
 
-	if [ "$ID" == "docker" ]; then
-		echo "WARN : Will require sudo/root."
-		echo "** Install docker"
-		$STELLA_API sys_install "docker"
-
-		#echo "** Add current user to docker group"
-		#sudo usermod -aG docker $USER
-
-		echo "** Start docker service"
-		#sudo service docker start
-		sudo systemctl restart docker
-
-		#echo "** FROM NOW LOGGOUT/LOGGIN AGAIN"
-	fi
-
-	if [ "$ID" == "tools" ]; then
-		echo "** Install docker-compose localy"
-		$STELLA_API feature_install docker-compose#1_8_1
-	fi
+	
 
 	if [ "$ID" == "env" ]; then
 		echo "** Prepare environnement for running a dockerized wekan (may need sudo/root)"
