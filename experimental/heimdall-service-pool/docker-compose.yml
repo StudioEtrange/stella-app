@@ -1,18 +1,64 @@
-wekan:
-  image: mquandalle/wekan
-  restart: always
-  links:
-    - wekandb
-  environment:
-    - MONGO_URL=mongodb://wekandb/wekan
-    - ROOT_URL=http://${WEKAN_HOST}:${WEKAN_PORT}
-    - MAIL_URL=smtp://mailhost.der.edf.fr:25/
-    - MAIL_FROM=wekan-admin
-  ports:
-    - ${WEKAN_PORT}:80
+version: '3.4'
 
-wekandb:
-   image: mongo
-   restart: always
-   volumes:
-     - ${WEKAN_HOME}:/data/db
+
+volumes:
+  data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${HEIMDALL_DATA_PATH}
+
+services:
+
+  frontend:
+    image: ${DEFAULT_DOCKER_IMAGE_heimdall:-linuxserver/heimdall}:${HEIMDALL_VERSION:-latest}
+    container_name: heimdall_frontend
+    restart: always
+    environment:
+      - PUID=${HEIMDALL_USER_ID:-0}
+      - PGID=${HEIMDALL_GROUP_ID:-0}
+    labels:
+      - "mambo.log=true"
+    volumes:
+      - data:/config
+      # a patch to authorize php-fpm to be run even as root
+      - ./run-php-fpm7.patch:/etc/services.d/php-fpm/run
+    expose:
+      - 80
+      - 443
+    ports:
+      - ${FRONTPORT:-80}:80
+    
+
+
+  backend:
+    image: ${DEFAULT_DOCKER_IMAGE_sandman2:-jeffknupp/sandman2}:${SANDMAN2_VERSION:-latest}
+    container_name: heimdall_backend
+    depends_on:
+      - frontend
+    restart: always
+    user: ${HEIMDALL_USER_ID:-0}:${HEIMDALL_GROUP_ID:-0}
+    volumes:
+      - data:/data
+    environment:
+      - DB_TYPE=sqlite
+      - DB_DRIVER=pysqlite
+      - USERNAME=
+      - DB_HOST=
+      - DATABASE=/data/www/app.sqlite
+      - DB_PORT=
+    expose:
+      - 5000
+      - 443
+    ports:
+      - ${BACKPORT:-5000}:5000
+    # NOTE : we need to sleep few seconds waiting heimdall intialize dabatase
+    command: >
+      sh -c 'sleep 8
+        if [ $${DB_TYPE} == "sqlite" ]; then
+          sandman2ctl -p 5000 $${DB_TYPE}+$${DB_DRIVER}:///$${DATABASE}
+        else
+          sandman2ctl -p 5000 $${DB_TYPE}+$${DB_DRIVER}://$${USERNAME}:$${PASSWORD}@$${DB_NAME}:$${DB_PORT}/$${DATABASE}
+        fi'
+

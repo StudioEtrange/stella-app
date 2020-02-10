@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# -R : allow php-fpm to be run as root, in case we pass PUID, PGID as 0
+exec /usr/sbin/php-fpm7 -F -R
