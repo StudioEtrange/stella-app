@@ -2,6 +2,7 @@
 _CURRENT_FILE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 _CURRENT_RUNNING_DIR="$( cd "$( dirname "." )" && pwd )"
 STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
+STELLA_LOG_STATE="OFF"
 . $_CURRENT_FILE_DIR/stella-link.sh include
 
 
@@ -135,6 +136,7 @@ function usage() {
   echo "L     resync registrator [--version=<version>] [--consul=<uri>] [--serviceip=<ip>|--serviceif=<interface>] [-- additional docker run options] : resync container with consul. During time : 5seconds"
   echo "L     shell <registrator|proxy|proxygen> : launch a shell inside running service"
   echo "L     destroy <registrator|proxy> [--version=<version>] : destroy service"
+  echo "L     check proxy : check current proxy conf"
   echo "o-- options :"
   echo "L     --consul : consul http api uri"
   echo "L     --proxy : reverse proxy port"
@@ -147,7 +149,7 @@ function usage() {
 
 # COMMAND LINE -----------------------------------------------------------------------------------
 PARAMETERS="
-ACTION=											'' 			a				'resync create start stop status shell destroy' '1'
+ACTION=											'' 			a				'resync create start stop status shell destroy check' '1'
 TARGET=											'' 			a				'registrator proxy proxygen' '1'
 "
 OPTIONS="
@@ -345,3 +347,13 @@ if [ "$ACTION" = "destroy" ]; then
   esac
 
 fi
+
+if [ "$ACTION" = "check" ]; then
+  case $TARGET in
+    proxy )
+      __compute_var "$TARGET"
+      __log_run docker run -it --rm --volumes-from $SERVICE_NAME $DOCKER_URI nginx -t -c /etc/nginx/nginx.conf
+    ;;
+  esac
+fi
+
