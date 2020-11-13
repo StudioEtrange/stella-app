@@ -44,7 +44,8 @@ STELLA_APP_PROPERTIES_FILENAME="consul-service.properties"
 
 # SERVICE INFO --------------------------------------
 DEFAULT_HTTP_PORT=8500
-DEFAULT_DNS_PORT=8600
+# 0 : by default disbale dns port
+DEFAULT_DNS_PORT=0
 
 DEFAULT_SERVICE_NAME="consul-service"
 
@@ -173,15 +174,25 @@ if [ "$ACTION" = "create" ]; then
         # https://stackoverflow.com/questions/41228968/accessing-consul-ui-running-in-docker-on-osx
         # NOTE : template for infer adress https://github.com/hashicorp/go-sockaddr/tree/master/cmd/sockaddr    
         if [ "$MACDESK" = "1" ]; then
-          __log_run docker run -d \
-            --name $SERVICE_NAME \
-            -p $HTTP:8500 -p $DNS:8600 -P \
-            --restart always \
-            -v $SERVICE_DATA_NAME:/consul/data \
-            -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
-            $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=8500 -dns-port=8600 \
-            -server -bootstrap-expect=1 -ui -bind='{{ GetPrivateIP }}' -client=0.0.0.0
-
+          if [ "$DNS" = "0" ]; then
+              __log_run docker run -d \
+                --name $SERVICE_NAME \
+                -p $HTTP:8500 -P \
+                --restart always \
+                -v $SERVICE_DATA_NAME:/consul/data \
+                -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
+                $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=8500 -dns-port=0 \
+                -server -bootstrap-expect=1 -ui -bind='{{ GetPrivateIP }}' -client=0.0.0.0
+          else
+              __log_run docker run -d \
+                --name $SERVICE_NAME \
+                -p $HTTP:8500 -p $DNS:8600 -P \
+                --restart always \
+                -v $SERVICE_DATA_NAME:/consul/data \
+                -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
+                $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=8500 -dns-port=8600 \
+                -server -bootstrap-expect=1 -ui -bind='{{ GetPrivateIP }}' -client=0.0.0.0
+          fi
         else
 
           
@@ -247,16 +258,25 @@ if [ "$ACTION" = "create" ]; then
         fi
 
         if [ "$MACDESK" = "1" ]; then
-
-          __log_run docker run -d \
-            --name $SERVICE_NAME \
-            -P \
-            --restart always \
-            -v $SERVICE_DATA_NAME:/consul/data \
-            -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
-            $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=8500 -dns-port=8600 \
-            -retry-join=$JOINIP -bind='{{ GetPrivateIP }}' -client=0.0.0.0
-
+          if [ "$DNS" = "0" ]; then
+            __log_run docker run -d \
+              --name $SERVICE_NAME \
+              -P \
+              --restart always \
+              -v $SERVICE_DATA_NAME:/consul/data \
+              -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
+              $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=8500 -dns-port=0 \
+              -retry-join=$JOINIP -bind='{{ GetPrivateIP }}' -client=0.0.0.0
+          else
+            __log_run docker run -d \
+              --name $SERVICE_NAME \
+              -P \
+              --restart always \
+              -v $SERVICE_DATA_NAME:/consul/data \
+              -e 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true, "disable_update_check": true}' \
+              $DOCKERARG $DOCKER_URI agent -node=$SERVICE_NAME -http-port=8500 -dns-port=8600 \
+              -retry-join=$JOINIP -bind='{{ GetPrivateIP }}' -client=0.0.0.0
+          fi
         else
         
 
