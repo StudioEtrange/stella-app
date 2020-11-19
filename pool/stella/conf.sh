@@ -257,24 +257,26 @@ STELLA_BINARY_DEFAULT_LIB_IGNORED='^/System/Library|^/usr/lib|^/lib'
 
 
 # API ---------------------------------------------
-STELLA_API_COMMON_PUBLIC="generate_machine_id sha256 is_logical_equalpath is_logical_subpath sort_version transfer_stella filter_list uri_build_path uri_get_path uri_parse find_folder_up get_active_path uncompress daemonize rel_to_abs_path is_abs argparse get_filename_from_string \
+STELLA_API_COMMON_PUBLIC="filter_version_list string_contains htpasswd_md5 htpasswd_sha1 htpasswd_crypt list_contains filter_list_with_list is_dir_empty list_filter_duplicate abs_to_rel_path symlink_abs_to_rel_path random_number_list_from_range format_table generate_machine_id sha256 is_logical_equalpath is_logical_subpath sort_version transfer_stella filter_list uri_build_path uri_get_path uri_parse find_folder_up get_active_path uncompress daemonize rel_to_abs_path is_abs argparse get_filename_from_string \
 get_resource delete_resource update_resource revert_resource download_uncompress copy_folder_content_into del_folder \
 get_key get_keys add_key del_key mercurial_project_version git_project_version get_stella_version \
-make_sevenzip_sfx_bin make_targz_sfx_shell compress trim transfer_stella transfer_folder_rsync transfer_file_rsync"
+make_sevenzip_sfx_bin make_targz_sfx_shell compress trim transfer_stella transfer_folder_rsync transfer_file_rsync md5"
 STELLA_API_API_PUBLIC="api_connect api_disconnect"
 STELLA_API_APP_PUBLIC="transfer_app get_app_property link_app get_data get_assets get_data_pack get_assets_pack delete_data delete_assets delete_data_pack delete_assets_pack update_data update_assets revert_data revert_assets update_data_pack update_assets_pack revert_data_pack revert_assets_pack get_feature get_features"
 STELLA_API_FEATURE_PUBLIC="feature_add_repo feature_info list_feature_version feature_remove feature_catalog_info feature_install feature_install_list feature_init list_active_features feature_reinit_installed feature_inspect"
 STELLA_API_BINARY_PUBLIC="tweak_linked_lib get_rpath add_rpath check_rpath check_binary_file tweak_binary_file"
 STELLA_API_BUILD_PUBLIC="toolset_info set_toolset start_build_session set_build_mode auto_build"
 STELLA_API_PLATFORM_PUBLIC="python_get_lib_dir python_get_include_dir python_get_bin_dir python_get_site_packages_global_path python_get_site_packages_user_path python_get_standard_packages_path yum_proxy_unset yum_proxy_unset_repo yum_proxy_set yum_proxy_set_repo yum_add_extra_repositories yum_remove_extra_repositories python_build_get_libs python_build_get_includes python_build_get_ldflags python_build_get_clags python_build_get_prefix python_major_version python_short_version sys_install sys_remove require"
-STELLA_API_NETWORK_PUBLIC="find_free_tcp_port check_tcp_port_open ssh_execute get_ip_from_hostname get_ip_from_interface proxy_tunnel enable_proxy disable_proxy no_proxy_for register_proxy register_no_proxy"
+STELLA_API_NETWORK_PUBLIC="find_free_port get_ip_external check_tcp_port_open ssh_execute get_ip_from_hostname get_ip_from_interface proxy_tunnel enable_proxy disable_proxy no_proxy_for register_proxy register_no_proxy"
 STELLA_API_BOOT_PUBLIC="boot_stella_shell boot_stella_cmd boot_stella_script boot_app_shell boot_app_cmd boot_app_script"
 STELLA_API_LOG_PUBLIC="log set_log_level set_log_state"
 
-# STELLA_API_RETURN_FUNCTION contains function which return a value with 'return' instruction. This value will be 'echo' when calling this function through api
-# NOTE : functions that do not 'return' nor 'echo' values, could be broken
-# TODO : this list contains function which do not use 'return' instruction --> have to clean it
-STELLA_API_RETURN_FUNCTION="sort_version uri_build_path uri_get_path get_ip_from_hostname get_ip_from_interface filter_list log find_folder_up python_major_version python_short_version list_feature_version get_active_path rel_to_abs_path trim is_abs get_stella_version list_active_features get_filename_from_string"
+# SAMPLE : to test a function that return an exit code :
+# 		if $($STELLA_API "is_dir_empty" "/bin"); then
+# 			echo empty
+# 		else
+# 			echo non empty
+# 		fi
 STELLA_API=__api_proxy
 
 

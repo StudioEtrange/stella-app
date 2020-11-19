@@ -4,12 +4,12 @@ _TEMPLATE_INCLUDED_=1
 
 feature_template() {
 	FEAT_NAME=template
-	FEAT_LIST_SCHEMA="1_0_0@x64:binary 1_0_0@x86:binary 1_0_0:source"
+	FEAT_LIST_SCHEMA="1_0_0@x64:binary 1_0_0@x86:binary 1_0_0:source\macos"
 	FEAT_DEFAULT_ARCH=x64
 	FEAT_DEFAULT_FLAVOUR="binary"
 
 	FEAT_DESC="template is foo"
-	FEAT_LINK="https://github.com/bar/template"
+	FEAT_LINK="https://github.com/bar/template https://mikefarah.gitbook.io/yq/"
 }
 
 

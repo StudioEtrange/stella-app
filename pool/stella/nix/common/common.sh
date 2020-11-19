@@ -11,6 +11,54 @@ _STELLA_COMMON_INCLUDED_=1
 
 
 
+
+# output a formated table
+# input :
+#               pass string to parse with a pipe
+# options :
+#		ALIGN_RIGHT : align all column text to right
+#		CELL_DELIMITER : use a char to separate column when printing the table
+#		SEPARATOR : define a separator which separate column in input text. default is TAB. For special character use a special notation like this
+#                       __format_table "SEPARATOR "$'\t'""
+# sample :
+#               printf "head_1 "$'\t'" head_2\n val_1 "$'\t'" val_2" | __format_table "ALIGN_RIGHT CELL_DELIMITER |"
+__format_table() {
+        declare __str
+        __str=$(</dev/stdin);
+        local __opt="$1"
+
+        local __align_right
+        local __cell_delim
+        local __flag_cel_delim=OFF
+        local __separator=$'\t'
+        local __flag_separator=OFF
+        for o in ${__opt}; do
+                [ "$o" = "ALIGN_RIGHT" ] && __align_right="1"
+                [ "$__flag_cel_delim" = "ON" ] && __cell_delim="$o" && __flag_cel_delim="OFF"
+                [ "$o" = "CELL_DELIMITER" ] && __flag_cel_delim="ON"
+                [ "$__flag_separator" = "ON" ] && __separator="$o" && __flag_separator="OFF"
+                [ "$o" = "SEPARATOR" ] && __flag_separator="ON"
+        done
+       
+        if [ "${__cell_delim}" = "" ]; then
+                if [ "${__align_right}" = "1" ]; then
+                        # NOTE : To work around the requirement entries in the leftmost column must be of equal width« insert a dummy column and remove it later
+                        #       https://stackoverflow.com/a/18022947/5027535
+                        echo "${__str}" | sed -e s/^/FOO"${__separator}"/ | rev | column -s "${__separator}" -t | rev | cut -c4-
+                else
+                        echo "${__str}" | column -s "${__separator}" -t
+                fi
+        else
+                if [ "${__align_right}" = "1" ]; then
+                        echo "${__str}" | sed -e s/"${__separator}/${__separator}${__cell_delim}${__separator}"/g | sed -e s/^/FOO"${__separator}"/  | rev | column -s "${__separator}" -t | rev | cut -c4- 
+                else
+                        echo "${__str}" | sed -e s/"${__separator}/${__separator}${__cell_delim}${__separator}"/g | column -s "${__separator}" -t
+                fi
+        fi
+
+}
+
+
 # return a randomly number list separated by space
 # PARAMETERS
 # nb of requested number to pick
@@ -206,6 +254,39 @@ __sha256() {
 	fi
 }
 
+__sha1() {
+	if [ "$STELLA_CURRENT_PLATFORM" = "darwin" ]; then
+		printf "$*" | shasum -a 1 | tr -dc '[:alnum:]'
+	else
+		type sha1sum &>/dev/null && printf "$*" | sha1sum | tr -dc '[:alnum:]'
+	fi
+}
+
+
+# HASH string with md5
+__md5() {
+	if [ "$STELLA_CURRENT_PLATFORM" = "darwin" ]; then
+		# both methods works
+		#printf "$*" | md5 | tr -dc '[:alnum:]'
+		md5 -qs "$*" | tr -dc '[:alnum:]'
+	else
+		type md5sum &>/dev/null && printf '%s' "$*" | md5sum | tr -dc '[:alnum:]'
+	fi
+}
+
+# https://github.com/rroutsong/bash-htpasswd/blob/master/htpasswd
+# md5 is used by default to generate password with htpasswd
+__htpasswd_md5() {
+	openssl passwd -apr1 "$1"
+}
+__htpasswd_sha1() {
+	__sha1 "$1"
+}
+__htpasswd_crypt() {
+	openssl passwd -crypt "$1"
+}
+
+
 # generate an unique id for a machine
 # MACHINE_ID (default) use /etc/machine-id https://unix.stackexchange.com/a/144915
 # PRODUCT_UUID use product_uuid -- need sudo -- https://unix.stackexchange.com/a/144892
@@ -304,7 +385,7 @@ __get_last_version() {
 	local list="$1"
 	local opt="$2"
 
-	echo $(__sort_version "$list" "$opt DESC") | cut -d' ' -f 1
+	echo $(__sort_version "$list" "$opt DESC LIMIT 1")
 }
 
 # pick a version from a list according to constraint
@@ -322,15 +403,18 @@ __get_last_version() {
 #				^version : pin version and select most recent version with same version part (not exactly like npm)
 #					^1.0 select the latest 1.0.* version (like 1.0.0 or 1.0.4)
 #					^1 select the latest 1.* version (like 1.0.0 or 1.2.4)
-# option :
-# ENDING_CHAR_REVERSE
-# SEP .
+
+# 	options LIMIT n, ENDING_CHAR_REVERSE, SEP c : see __sort_version
+
 #		__select_version_from_list ">1.1.1a" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
 # desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
 # select_version result is : 1.1.1b
 #		__select_version_from_list ">1.1.1b" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
 # desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
 # select_version result is : <none>
+#		__select_version_from_list ">=1.1.1a" "1.1.1 1.1.0 1.1.1a 1.1.1b" "SEP ."
+# desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
+# select_version result is : 1.1.1a
 #		__select_version_from_list "<=1.1.1c" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
 # desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
 # select_version result is : 1.1.1b
@@ -345,10 +429,14 @@ __get_last_version() {
 # select_version result is : 1.1.0
 #		__select_version_from_list "^1.1.1a" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
 # desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0
-# select_version result is : 1.1.1b
+# select_version result is : 1.1.1a
 #		__select_version_from_list "^1.0" "1.0.0 1.0.1 1.1.1 1.1.1a 1.1.1b" "SEP ."
 # desc list is 1.1.1b 1.1.1a 1.1.1 1.1.0 1.0.1 1.0.8
 # select_version result is : 1.0.1
+#			__select_version_from_list "^1.1" "1.1 1.0.0" "SEP ."
+# select_version result is : 1.1
+#			__select_version_from_list "^1.1" "1.1 1.1.0" "SEP ."
+# select_version result is : 1.1.0
 __select_version_from_list() {
 	local selector="$1"
 	local list="$2"
@@ -359,58 +447,77 @@ __select_version_from_list() {
 	local sorted_list=
 	local flag
 	flag=0
+	local exist
+	exist=0
 	case ${selector} in
 		\>=*)
 			selector="${selector:2}"
-			sorted_list="$(__sort_version "${selector} ${list}" "DESC ${opt}")"
-			result="$(echo $sorted_list | cut -d' ' -f 1)"
-			# if selector is the result (equal), we must check if selector exist as is in the orignal list
-			if [ "${result}" = "${selector}" ]; then
-				result=
-				for v in ${list}; do
-					if [ "${v}" = "${selector}" ]; then
+			if __list_contains "${list}" "${selector}"; then
+				exist=1
+				sorted_list="$(__sort_version "${list}" "ASC ${opt}")"
+			else
+				sorted_list="$(__sort_version "${selector} ${list}" "ASC ${opt}")"
+			fi
+			for v in ${sorted_list}; do
+				if [ "${flag}" = "1" ]; then
+					result="${v}"
+					break;
+				fi
+				# if selector is the result (equal), we must check if selector exist as is in the orignal list
+				if [ "${v}" = "${selector}" ]; then
+					if [ "${exist}" = "1" ]; then
 						result="${selector}"
 						break;
+					else
+						flag=1
 					fi
-				done
-			fi
+				fi
+			done
 			;;
 
 
 		\>* )
 			selector="${selector:1}"
-			sorted_list="$(__sort_version "${selector} ${list}" "DESC ${opt}")"
-			result="$(echo $sorted_list | cut -d' ' -f 1)"
-			# if most recent version is equal to selector, so there is no greater version than selector
-			[ "${result}" = "${selector}" ] && result=""
+			if __list_contains "${list}" "${selector}"; then
+				sorted_list="$(__sort_version "${list}" "ASC ${opt}")"
+			else
+				sorted_list="$(__sort_version "${selector} ${list}" "ASC ${opt}")"
+			fi
+			
+			for v in ${sorted_list}; do
+				if [ "${flag}" = "1" ]; then
+					# in case of duplicate element
+					[ "${v}" = "${selector}" ] && continue
+					result="${v}"
+					break;
+				fi
+				if [ "${v}" = "${selector}" ]; then
+					flag=1
+				fi
+			done
 			;;
 
 
 		\<=* )
 			selector="${selector:2}"
-			local selector_value_exist=0
-			# we must check if selector exist as is in the orignal list
-			for v in ${list}; do
-				if [ "${v}" = "${selector}" ]; then
-					selector_value_exist=1
+			if __list_contains "${list}" "${selector}"; then
+				exist=1
+				sorted_list="$(__sort_version "${list}" "DESC ${opt}")"
+			else
+				sorted_list="$(__sort_version "${selector} ${list}" "DESC ${opt}")"
+			fi
+			for v in ${sorted_list}; do
+				if [ "${flag}" = "1" ]; then
+					result="${v}"
 					break;
 				fi
-			done
-
-			sorted_list="$(__sort_version "${selector} ${list}" "DESC ${opt}")"
-			for v in ${sorted_list}; do
-				# we reach the selector, result is the selector itself only if it exist in original list, or the next value
+				# if selector is the result (equal), we must check if selector exist as is in the orignal list
 				if [ "${v}" = "${selector}" ]; then
-					if [ "${selector_value_exist}" = "1" ]; then
-						result="${v}"
-						break
+					if [ "${exist}" = "1" ]; then
+						result="${selector}"
+						break;
 					else
 						flag=1
-					fi
-				else
-					if [ "${flag}" = "1" ]; then
-						result="${v}"
-						break
 					fi
 				fi
 			done
@@ -418,19 +525,21 @@ __select_version_from_list() {
 
 		\<* )
 			selector="${selector:1}"
-			list="${selector} ${list}"
-			sorted_list="$(__sort_version "${list}" "DESC ${opt}")"
+			if __list_contains "${list}" "${selector}"; then
+				sorted_list="$(__sort_version "${list}" "DESC ${opt}")"
+			else
+				sorted_list="$(__sort_version "${selector} ${list}" "DESC ${opt}")"
+			fi
+			
 			for v in ${sorted_list}; do
-				# NOTE : because selector version might exist in original list, we may have duplicate version in list
-				# so while v is selector we do not record value as result
+				if [ "${flag}" = "1" ]; then
+					# in case of duplicate element
+					[ "${v}" = "${selector}" ] && continue
+					result="${v}"
+					break;
+				fi
 				if [ "${v}" = "${selector}" ]; then
 					flag=1
-				else
-					# the result is the next desc value just after selector
-					if [ "${flag}" = "1" ]; then
-						result="${v}"
-						break
-					fi
 				fi
 			done
 			;;
@@ -444,19 +553,18 @@ __select_version_from_list() {
 			for v in ${list}; do
 				case ${v} in
 					# selector exist in list
-					${selector}) 	flag=1;;
+					${selector}) filtered_list="${filtered_list} ${v}"; exist=1;;
 					# matching version in list starting with ${selector}
 					${selector}*) filtered_list="${filtered_list} ${v}";;
 				esac
 			done
-			sorted_list="$(__sort_version "${selector} ${filtered_list}" "DESC ${opt}")"
+			sorted_list="$(__sort_version "${filtered_list}" "DESC ${opt}")"
 			result="$(echo $sorted_list | cut -d' ' -f 1)"
-			# if selector is the result (equal), we use it onlfy if selector exist as is in the orignal list
-			if [ "${result}" = "${selector}" ]; then
-				[ ! "${flag}" = "1" ] && result=
-			fi
 			;;
 
+		"" )
+			result=""
+			;;
 		* )
 			# check if exact version exist
 			for v in ${list}; do
@@ -470,32 +578,228 @@ __select_version_from_list() {
 	echo "${result}"
 }
 
-# sort a list of version
+# __filter_version_list filter versions list with a constraint and return a filtered sorted list in ASC (by default)
+# 	same as __select_version_from_list but return a matching list of versions instead of one picked version
+# 	options LIMIT n, ENDING_CHAR_REVERSE, SEP c : see __sort_version
+#					ASC (default), DESC : will return result filtered list in this order
+# __filter_version_list ">=1.1.0" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+#		1.1.0 1.1.1 1.1.1a 1.1.1b
+# __filter_version_list ">=1.1.1" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+#		1.1.1 1.1.1a 1.1.1b
+# __filter_version_list ">=1.1.1" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP . ENDING_CHAR_REVERSE"
+#		1.1.1
+# __filter_version_list "<1.1.0" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+#
+# __filter_version_list "<1.1.1a" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+#		1.1.0 1.1.1
+# __filter_version_list "<=1.1.1a" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP ."
+#		1.1.0 1.1.1 1.1.1a
+# __filter_version_list "<=1.1.1a" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP . ENDING_CHAR_REVERSE"
+#		1.1.0 1.1.1a
+# __filter_version_list "^1.1.1a" "1.1.0 1.1.1 1.1.1a 1.1.1b" "SEP . ENDING_CHAR_REVERSE"
+#		1.1.1a
+# __filter_version_list "^1.1" "1.1.0 1.1.1 1.1.1a 1.1.1b 1.1" "SEP ."
+#		1.1 1.1.0 1.1.1 1.1.1a 1.1.1b
+# __filter_version_list "^1.1" "1.1.0 1.1.1 1.1.1a 1.1.1b 1.1" "DESC SEP ." 
+#		1.1.1b 1.1.1a 1.1.1 1.1.0 1.1
+# __filter_version_list "1.1" "1.1.0 1.1.1 1.1.1a 1.1.1b 1.1" "SEP ." 
+#		1.1
+# __filter_version_list "" "1.1.0 1.1.1 1.1.1a 1.1.1b 1.1" "SEP ." 
+#		1.1.0 1.1.1 1.1.1a 1.1.1b 1.1
 
-#sorted=$(__sort_version "build507 build510 build403 build4000 build" "ASC")
-#echo $sorted
-# > build build403 build507 build510 build4000
-#sorted=$(__sort_version "1.1.0 1.1.1 1.1.1a 1.1.1b" "ASC SEP .")
-#echo $sorted
-# > 1.1.0 1.1.1 1.1.1a 1.1.1b
-#sorted=$(__sort_version "1.1.0 1.1.1 1.1.1a 1.1.1b" "DESC SEP .")
-#echo $sorted
-# > 1.1.1b 1.1.1a 1.1.1 1.1.0
-#sorted=$(__sort_version "1.1.0 1.1.1 1.1.1alpha 1.1.1beta1 1.1.1beta2" "ASC ENDING_CHAR_REVERSE SEP .")
-#echo $sorted
-# > 1.1.0 1.1.1alpha 1.1.1beta1 1.1.1beta2 1.1.1
-#sorted=$(__sort_version "1.1.0 1.1.1 1.1.1alpha 1.1.1beta1 1.1.1beta2" "DESC ENDING_CHAR_REVERSE SEP .")
-#echo $sorted
-# > 1.1.1 1.1.1beta2 1.1.1beta1 1.1.1alpha 1.1.0
-#sorted=$(__sort_version "1.9.0 1.10.0 1.10.1.1 1.10.1 1.10.1alpha1 1.10.1beta1 1.10.1beta2 1.10.2 1.10.2.1 1.10.2.2 1.10.0RC1 1.10.0RC2" "DESC ENDING_CHAR_REVERSE SEP .")
-#echo $sorted
-# > 1.10.2.2 1.10.2.1 1.10.2 1.10.1.1 1.10.1 1.10.1beta2 1.10.1beta1 1.10.1alpha1 1.10.0 1.10.0RC2 1.10.0RC1 1.9.0
+__filter_version_list() {
+	local selector="$1"
+	local list="$2"
+	local opt="$3"
+	local result=""
+
+	local limit=
+	local __result_order="ASC"
+	local flag_sep="OFF"
+	local flag_limit="OFF"
+	local __sort_opt=
+	for o in $opt; do
+		[ "$o" = "ASC" ] && __result_order="$o"
+		[ "$o" = "DESC" ] && __result_order="$o"
+		[ "$o" = "ENDING_CHAR_REVERSE" ] && __sort_opt="${__sort_opt} ENDING_CHAR_REVERSE"
+		[ "$flag_sep" = "ON" ] && __sort_opt="${__sort_opt} $o" && flag_sep="OFF"
+		[ "$o" = "SEP" ] && flag_sep="ON" && __sort_opt="${__sort_opt} SEP"
+		[ "$flag_limit" = "ON" ] && limit="$o" && flag_limit="OFF"
+		[ "$o" = "LIMIT" ] && flag_limit="ON"
+	done
 
 
-# NOTE : ending characters in a version number can be ordered in the opposite way example :
+	local v
+	local sorted_list=
+	local flag
+	flag=0
+	local exist
+	exist=0
+	case ${selector} in
+		\>=*)
+			selector="${selector:2}"
+			if __list_contains "${list}" "${selector}"; then
+				exist=1
+				sorted_list="$(__sort_version "${list}" "ASC ${__sort_opt}")"
+			else
+				sorted_list="$(__sort_version "${selector} ${list}" "ASC ${__sort_opt}")"
+			fi
+			for v in ${sorted_list}; do
+				if [ "${flag}" = "1" ]; then
+					[ "${__result_order}" = "DESC" ] && result="${v} ${result}" || result="${result} ${v}"
+					continue;
+				fi
+				# if selector is the result (equal), we must check if selector exist as is in the orignal list
+				if [ "${v}" = "${selector}" ]; then
+					if [ "${exist}" = "1" ]; then
+						[ "${__result_order}" = "DESC" ] && result="${selector} ${result}" || result="${result} ${selector}"
+						flag=1
+					else
+						flag=1
+					fi
+				fi
+			done
+			;;
+
+
+		\>* )
+			selector="${selector:1}"
+			if __list_contains "${list}" "${selector}"; then
+				sorted_list="$(__sort_version "${list}" "ASC ${__sort_opt}")"
+			else
+				sorted_list="$(__sort_version "${selector} ${list}" "ASC ${__sort_opt}")"
+			fi
+			
+			for v in ${sorted_list}; do
+				if [ "${flag}" = "1" ]; then
+					# in case of duplicate element
+					[ "${v}" = "${selector}" ] && continue
+					[ "${__result_order}" = "DESC" ] && result="${v} ${result}" || result="${result} ${v}"
+				fi
+				if [ "${v}" = "${selector}" ]; then
+					flag=1
+				fi
+			done
+			;;
+
+
+		\<=* )
+			selector="${selector:2}"
+			if __list_contains "${list}" "${selector}"; then
+				exist=1
+				sorted_list="$(__sort_version "${list}" "DESC ${__sort_opt}")"
+			else
+				sorted_list="$(__sort_version "${selector} ${list}" "DESC ${__sort_opt}")"
+			fi
+			for v in ${sorted_list}; do
+				if [ "${flag}" = "1" ]; then
+					[ "${__result_order}" = "DESC" ] && result="${result} ${v}" || result="${v} ${result}"
+					continue
+				fi
+				# if selector is the result (equal), we must check if selector exist as is in the orignal list
+				if [ "${v}" = "${selector}" ]; then
+					if [ "${exist}" = "1" ]; then
+						[ "${__result_order}" = "DESC" ] && result="${result} ${selector}" || result="${selector} ${result}"
+						flag=1
+					else
+						flag=1
+					fi
+				fi
+			done
+			;;
+
+		\<* )
+			selector="${selector:1}"
+			if __list_contains "${list}" "${selector}"; then
+				sorted_list="$(__sort_version "${list}" "DESC ${__sort_opt}")"
+			else
+				sorted_list="$(__sort_version "${selector} ${list}" "DESC ${__sort_opt}")"
+			fi
+			
+			for v in ${sorted_list}; do
+				if [ "${flag}" = "1" ]; then
+					# in case of duplicate element
+					[ "${v}" = "${selector}" ] && continue
+					[ "${__result_order}" = "DESC" ] && result="${result} ${v}" || result="${v} ${result}"
+				fi
+				if [ "${v}" = "${selector}" ]; then
+					flag=1
+				fi
+			done
+			;;
+
+
+
+		^* )
+			selector="${selector:1}"
+			# filter list only starting with selector AND check if selector exist as is in the orignal list
+			filtered_list=
+			for v in ${list}; do
+				case ${v} in
+					# selector exist in list
+					${selector}) filtered_list="${filtered_list} ${v}"; exist=1;;
+					# matching version in list starting with ${selector}
+					${selector}*) filtered_list="${filtered_list} ${v}";;
+				esac
+			done
+			result="$(__sort_version "${filtered_list}" "${__result_order} ${__sort_opt}")"
+			;;
+
+		"" )
+			result="$(__sort_version "${list}" "${__result_order} ${__sort_opt}")"
+			;;
+		* )
+			# check if exact version exist
+			for v in ${list}; do
+				if [ "${v}" = "${selector}" ]; then
+					result="${v}"
+					break;
+				fi
+			done
+			;;
+	esac
+
+	[ ! "${limit}" = "" ] && echo "${result}" | sed -e 's/^ *//' -e 's/ *$//' | cut -d' ' -f "-${limit}" \
+	 	|| echo "${result}" | sed -e 's/^ *//' -e 's/ *$//'
+
+}
+
+
+
+# sort a list of versions
+
+#__sort_version "build507 build510 build403 build4000 build" "ASC"
+#  build build403 build507 build510 build4000
+#__sort_version "1.1.0 1.1.1 1.1.1a 1.1.1b" "ASC"
+#  1.1.0 1.1.1 1.1.1a 1.1.1b
+#__sort_version "1.1.0 1.1.1 1.1.1a 1.1.1b" "ASC SEP ."
+#  1.1.0 1.1.1 1.1.1a 1.1.1b
+#__sort_version "1.1.0 1.1.1 1.1.1a 1.1.1b" "ASC SEP . ENDING_CHAR_REVERSE"
+#  1.1.0 1.1.1a 1.1.1b 1.1.1
+#__sort_version "1.1.0 1.1.1 1.1.1a 1.1.1b" "DESC"
+#  1.1.1b 1.1.1a 1.1.1 1.1.0
+#__sort_version "1.1.0 1.1.1 1.1.1a 1.1.1b" "DESC SEP ."
+#  1.1.1b 1.1.1a 1.1.1 1.1.0
+#__sort_version "1.1.0 1.1.1 1.1.1a 1.1.1b" "DESC SEP . ENDING_CHAR_REVERSE"
+#  1.1.1 1.1.1b 1.1.1a 1.1.0
+#__sort_version "1.1.0 1.1.1 1.1.1alpha 1.1.1beta1 1.1.1beta2" "ASC ENDING_CHAR_REVERSE SEP ."
+#  1.1.0 1.1.1alpha 1.1.1beta1 1.1.1beta2 1.1.1
+#__sort_version "1.1.0 1.1.1 1.1.1alpha 1.1.1beta1 1.1.1beta2" "DESC ENDING_CHAR_REVERSE SEP ."
+#  1.1.1 1.1.1beta2 1.1.1beta1 1.1.1alpha 1.1.0
+#__sort_version "1.9.0 1.10.0 1.10.1.1 1.10.1 1.10.1alpha1 1.10.1beta1 1.10.1beta2 1.10.2 1.10.2.1 1.10.2.2 1.10.0RC1 1.10.0RC2" "DESC ENDING_CHAR_REVERSE SEP ."
+#  1.10.2.2 1.10.2.1 1.10.2 1.10.1.1 1.10.1 1.10.1beta2 1.10.1beta1 1.10.1alpha1 1.10.0 1.10.0RC2 1.10.0RC1 1.9.0
+
+# options :
+#		ASC : ascending order
+#		DESC : decresacing order
+#  		ENDING_CHAR_REVERSE ending characters in a version number can be ordered in the opposite way example :
 # 			1.0.1 is more recent than 1.0.1beta so in ASC : 1.0.1beta 1.0.1 and in DESC : 1.0.1 1.0.1beta
 # 			To activate this behaviour use "ENDING_CHAR_REVERSE" option
 # 			we must indicate separator with SEP if we use ENDING_CHAR_REVERSE and if there is any separator (obviously)
+#		LIMIT n : limit to a number of result
+# NOTE : characters "}", "!" and "{" may cause problem if they are used in versions strings
+
+
 __sort_version() {
 	local list=$1
 	local opt="$2"
@@ -504,15 +808,18 @@ __sort_version() {
 	local mode="ASC"
 
 	local separator=
-
-	local flag_sep=OFF
+	local limit=
+	local flag_sep="OFF"
+	local flag_limit="OFF"
 	for o in $opt; do
-		[ "$o" = "ASC" ] && mode=$o
-		[ "$o" = "DESC" ] && mode=$o
-		[ "$o" = "ENDING_CHAR_REVERSE" ] && opposite_order_for_ending_chars=ON
+		[ "$o" = "ASC" ] && mode="$o"
+		[ "$o" = "DESC" ] && mode="$o"
+		[ "$o" = "ENDING_CHAR_REVERSE" ] && opposite_order_for_ending_chars="ON"
 		# we need separator only if we use ENDING_CHAR_REVERSE and if there is any separator (obviously)
-		[ "$flag_sep" = "ON" ] && separator="$o" && flag_sep=OFF
-		[ "$o" = "SEP" ] && flag_sep=ON
+		[ "$flag_sep" = "ON" ] && separator="$o" && flag_sep="OFF"
+		[ "$o" = "SEP" ] && flag_sep="ON"
+		[ "$flag_limit" = "ON" ] && limit="$o" && flag_limit="OFF"
+		[ "$o" = "LIMIT" ] && flag_limit="ON"
 	done
 
 	local internal_separator="}"
@@ -526,23 +833,24 @@ __sort_version() {
 		[ "$separator" = "" ] && new_item="$(echo $r | sed "s,\([0-9]*\)\([^0-9]*\)\([0-9]*\),\1$internal_separator\2$internal_separator\3,g" | sed "s,^\([0-9]\),$internal_separator\1," | sed "s,\([0-9]\)$,\1$internal_separator,")"
 
 		if [ "$opposite_order_for_ending_chars" = "OFF" ]; then
-			[ "$mode" = "ASC" ] && substitute=A
-			[ "$mode" = "DESC" ] && substitute=A
+			# ! is before A (in C locale)
+			[ "$mode" = "ASC" ] && substitute="?"
+			[ "$mode" = "DESC" ] && substitute="?"
 		else
-			[ "$mode" = "ASC" ] && substitute=z
-			[ "$mode" = "DESC" ] && substitute=z
+			# { is after z (in C locale)
+			[ "$mode" = "ASC" ] && substitute="{"
+			[ "$mode" = "DESC" ] && substitute="{"
 		fi
 
 		[ ! "$separator" = "" ] && new_item="$(echo $new_item | sed "s,\\$separator,$substitute,g")"
 
 		new_list="$new_list $new_item"
 		match_list="$new_item $r $match_list"
-
 		number_of_block="${new_item//[^$internal_separator]}"
-		[ "${#number_of_block}" -gt "$max_number_of_block" ] && max_number_of_block="${#number_of_block}"
+		number_of_block=${#number_of_block}
+		[ "${number_of_block}" -gt "$max_number_of_block" ] && max_number_of_block="${number_of_block}"
 	done
-	max_number_of_block=$[max_number_of_block +1]
-
+	
 	# we detect block made with non-number characters for reverse order of block with non-number characters (except the first one)
 	local count=0
 	local b
@@ -550,11 +858,12 @@ __sort_version() {
 	local char_block_list=
 
 	for i in $new_list; do
+		
+		# the first empty block count as firt
+		# here there is 3 blocks, not ot 2 : }build} }build}4000} }build}403} }build}507} }build}510}
 		count=1
-
 		for b in $(echo $i | tr "$internal_separator" "\n"); do
 			count=$[$count +1]
-
 			if [ ! "$(echo $b | sed "s,[0-9]*,,g")" = "" ]; then
 				char_block_list="$char_block_list $count"
 			fi
@@ -565,33 +874,44 @@ __sort_version() {
 	# note : for non-number characters : first non-number character is sorted as wanted (ASC or DESC) and others non-number characters are sorted in the opposite way
 	# example : 1.0.1 is more recent than 1.0.1beta so in ASC : 1.0.1beta 1.0.1 and in DESC : 1.0.1 1.0.1beta
 	# example : build400 is more recent than build300 so in ASC : build300 build400 and in DESC : build400 build300
-	count=0
+
 	local sorted_arg=
+
+	# first empty arg
+	[ "$mode" = "DESC" ] && sorted_arg="-k 1,1r" || sorted_arg="-k 1,1"
+	
+	count=1
 	local j
-	while [  "$count" -lt "$max_number_of_block" ]; do
+	while [ "$count" -lt "$max_number_of_block" ]; do
 		count=$[$count +1]
 
+		# -k option to sort on a certain column
+		# -r Option: Sorting In Reverse Order
+		# -n Option : To sort numerically
 		block_arg=
 
 		block_is_char=
-		for j in $char_block_list; do
-			[ "$count" = "$j" ] && block_is_char=1
-		done
+		if __list_contains "$char_block_list" "$count"; then
+			block_is_char=1
+		fi
 		if [ "$block_is_char" = "" ]; then
-			block_arg=n$block_arg
-			[ "$mode" = "ASC" ] && block_arg=$block_arg
-			[ "$mode" = "DESC" ] && block_arg=r$block_arg
-		else
-			[ "$mode" = "ASC" ] && block_arg=$block_arg
-			[ "$mode" = "DESC" ] && block_arg=r$block_arg
+			block_arg="n${block_arg}"
 		fi
 
+		[ "$mode" = "DESC" ] && block_arg="r${block_arg}"
+
+		# -k POS1[,POS2]  # we need POS2 or order is broken ;
+		# this will not work :
+		# echo "B.507 A.510 B.403 B.4000" | tr ' ' '\n' | LC_COLLATE=C sort -t'.' -k1,1 -k 2,2n
 		sorted_arg="$sorted_arg -k $count,$count"$block_arg
+		#sorted_arg="$sorted_arg -k $count"$block_arg
 	done
 	[ "$mode" = "ASC" ] && sorted_arg="-t$internal_separator $sorted_arg"
 	[ "$mode" = "DESC" ] && sorted_arg="-t$internal_separator $sorted_arg"
 
-	sorted_list="$(echo "$new_list" | tr ' ' '\n' | sort $(echo "$sorted_arg") | tr '\n' ' ')"
+	# LC_COLLATE=C fix character order
+	# https://unix.stackexchange.com/a/19327
+	sorted_list="$(echo "$new_list" | tr ' ' '\n' | LC_COLLATE=C sort $(echo "$sorted_arg") | tr '\n' ' ')"
 
 	# restore original version strings (alternative to hashtable...)
 	local result_list=
@@ -611,8 +931,9 @@ __sort_version() {
 		done
 	done
 
-	echo "$result_list" | sed -e 's/^ *//' -e 's/ *$//'
 
+	[ ! "${limit}" = "" ] && echo "${result_list}" | sed -e 's/^ *//' -e 's/ *$//' | cut -d' ' -f "-${limit}" \
+	 	|| echo "${result_list}" | sed -e 's/^ *//' -e 's/ *$//'
 }
 
 
@@ -707,15 +1028,23 @@ __uri_build_path() {
 # __uri_get_path ssh://host/?foo ==> ./foo
 # __uri_get_path local://../foo  ==> ../foo
 # __uri_get_path local://?../foo  ==> ../foo
-#	__uri_get_path local:///?foo	==> ./foo
+# __uri_get_path local:///?foo	==> ./foo
 # __uri_get_path ssh://host/foo  ==> /foo
 # __uri_get_path local:///foo  ==> /foo
 # __uri_get_path ssh://host ==> .
+# NOTE : without schema, we use local as default 
+#	../foo ==>	local://../foo  ==> ../foo
 __uri_get_path() {
 	local _uri="$@"
 	local __path
 
 	__uri_parse "$_uri"
+
+	# if there is not schema specified, we are in local
+	if [ "$__stella_uri_schema" = "" ]; then
+		__stella_uri_schema="local"
+		_uri="local://${_uri}"
+	fi
 
 	# we may have use absolute path or relative path.
 	# if relative path is used, it is specify with local://../foo OR local://?../foo
@@ -875,6 +1204,7 @@ __transfer_stella() {
 #			transfert /foo/folder to host 'ip' into absolute path '/path'
 # __transfer_folder_rsync /foo/folder vagrant://default
 #			use ssh configuration of vagrant to connect to machine named 'default'
+# __transfer_folder_rsync /foo/folder local://../path OR __transfer_folder_rsync /foo/folder ../path
 __transfer_folder_rsync() {
 	local _folder="$1"
 	local _uri="$2"
@@ -923,7 +1253,7 @@ __transfer_file_rsync() {
 # 		FOLDER_CONTENT will transfer folder content not folder itself
 # 		EXCLUDE_HIDDEN exclude hidden files
 #			SUDO use sudo while transfering to uri
-#			COPY_LINKS copy real file linked by a symlink
+#			COPY_LINKS copy real files linked by a symlink instead of the symlink
 #			DELETE_EXCLUDED delete excluded files on the target
 __transfer_rsync() {
 	local _mode="$1"
@@ -958,7 +1288,7 @@ __transfer_rsync() {
 
 	__uri_parse "$_uri"
 
-	[ "$__stella_uri_schema" = "" ] && __stella_uri_schema=local
+	[ "$__stella_uri_schema" = "" ] && __stella_uri_schema="local"
 
 	local _local_filesystem="OFF"
 	if [ "$__stella_uri_schema" = "local" ]; then
@@ -1000,7 +1330,7 @@ __transfer_rsync() {
 	local _opt_include=
 	local _opt_exclude=
 	local _opt_links=
-	[ "$_opt_copy_links" = "ON" ] && _opt_links="--copy-links"
+	[ "$_opt_copy_links" = "ON" ] && _opt_links="--copy-links  --keep-dirlinks"
 	[ "$_opt_delete_excluded" = "ON" ] && _opt_exclude="--delete-excluded $_opt_exclude"
 
 	case $_mode in
@@ -1010,7 +1340,7 @@ __transfer_rsync() {
 					_source="$_source/"
 				else
 					_source="${_source%/}"
-					_base_folder="/$(basename $_source)/"
+					_base_folder="/$(basename "${_source}")/"
 				fi
 
 				for o in $_include; do
@@ -1034,6 +1364,8 @@ __transfer_rsync() {
 	# NOTE : rsync + ssh + sudo
 	#				https://serverfault.com/questions/534683/rsync-over-ssh-getting-no-tty-present
 	#				https://superuser.com/questions/270911/run-rsync-with-root-permission-on-remote-machine
+	# NOTE : rsync -l (--links) option keep symlink as is
+	#	 rsync -a option include -l (--links)
 	case $__stella_uri_schema in
 		ssh )
 			if [ "$_opt_sudo" = "ON" ]; then
@@ -1043,7 +1375,7 @@ __transfer_rsync() {
 				__log "DEBUG" "__sudo_ssh_end_session $_uri"
 				__sudo_ssh_end_session "$_uri"
 			fi
-			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="mkdir -p '$(dirname $_target_path)'; rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60 -p $_ssh_port" "$_source" "$_target"
+			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="mkdir -p '$(dirname "${_target_path}")'; rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60 -p $_ssh_port" "$_source" "$_target"
 			;;
 		vagrant )
 			if [ "$_opt_sudo" = "ON" ]; then
@@ -1051,7 +1383,7 @@ __transfer_rsync() {
 				rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="sudo -Es mkdir -p '$_target_path'; sudo -Es rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60 $__vagrant_ssh_opt" "$_source" "$_target"
 				__sudo_ssh_end_session "$_uri"
 			fi
-			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="mkdir -p '$(dirname $_target_path)'; rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh $__vagrant_ssh_opt -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60" "$_source" "$_target"
+			[ "$_opt_sudo" = "OFF" ] && rsync $_opt_links $_opt_include $_opt_exclude --rsync-path="mkdir -p '$(dirname "${_target_path}")'; rsync" --no-owner --no-group --force --delete -prltD -vz -e "ssh $__vagrant_ssh_opt -o ControlPath=~/.ssh/%r@%h-%p -o ControlMaster=auto -o ControlPersist=60" "$_source" "$_target"
 			;;
 		local )
 			if [ "$_source" = "$_target" ]; then
@@ -1059,11 +1391,11 @@ __transfer_rsync() {
 			else
 				# '--rsync-path' option seems to not work when we are on the same host (local)
 				if [ "$_opt_sudo" = "ON" ]; then
-					sudo -E mkdir -p "$(dirname $_target_path)"
+					sudo -E mkdir -p "$(dirname "${_target_path}")"
 					sudo -E rsync $_opt_links $_opt_include $_opt_exclude --force --delete -avz "$_source" "$_target"
 				fi
 				if [ "$_opt_sudo" = "OFF" ]; then
-					mkdir -p "$(dirname $_target_path)"
+					mkdir -p "$(dirname "${_target_path}")"
 					rsync $_opt_links $_opt_include $_opt_exclude --force --delete -avz "$_source" "$_target"
 				fi
 			fi
@@ -1092,7 +1424,8 @@ __get_active_path() {
 }
 
 
-
+# filter a list with include and exclude elements
+# alternative : __filter_list_with_list 
 __filter_list() {
 	local _list="$1"
 	local _opt="$2"
@@ -1139,6 +1472,46 @@ __filter_list() {
 }
 
 
+
+# filter a list with items of another list
+# FILTER_REMOVE option (by default) :  will remove from __list_src items present in __list_filter
+# FILTER_KEEP option : will remove from __list_src items not present in __list_filter
+# alternative : __filter_list
+__filter_list_with_list() {
+	local __list_src="$1"
+	local __list_filter="$2"
+	local __opt="$3"
+
+	local __opt_keep=
+	for o in ${__opt}; do
+		[ "$o" = "FILTER_REMOVE" ] && __opt_keep=
+		[ "$o" = "FILTER_KEEP" ] && __opt_keep="ON"
+	done
+
+	[ -z "${__list_src}" ] && return
+
+	if [ "$__opt_keep" = "ON" ]; then
+		[ -z "${__list_filter}" ] && return
+	else
+		[ -z "${__list_filter}" ] && echo -n "${__list_src}" && return
+	fi
+
+	local __result_list=
+	if [ "$__opt_keep" = "ON" ]; then
+		for s in ${__list_src}; do
+			[[ " ${__list_filter} " =~ .*\ ${s}\ .* ]] && __result_list="${__result_list} ${s}"
+		done
+	else
+		for s in ${__list_src}; do
+			[[ " ${__list_filter} " =~ .*\ ${s}\ .* ]] || __result_list="${__result_list} ${s}"
+		done
+	fi
+
+	# remove trailing whitespace and return list
+	echo -n "${__result_list%"${__result_list##*[![:space:]]}"}"
+}
+
+
 # http://stackoverflow.com/questions/369758/how-to-trim-whitespace-from-a-bash-variable
 __trim3() {
 	echo -e "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
@@ -1173,6 +1546,18 @@ __list_contains() {
   local _list="$1"
   local _item="$2"
   [[ "$_list" =~ (^|[[:space:]])"$_item"($|[[:space:]]) ]]
+}
+
+# remove duplicate values in list and return it sorted
+# result="$(__list_filter_duplicate "aa b bb aa ddd aaa cc bb aa")"
+# echo $result
+# aa aaa b bb cc ddd
+__list_filter_duplicate() {
+	local _list="$1"
+	_list="$(printf '%s\n' ${_list} | sort | uniq | tr '\n' ' ')"
+
+	# remove trailing whitespace and return list
+	echo -n "${_list%"${_list##*[![:space:]]}"}"
 }
 
 __get_stella_version() {
@@ -1212,14 +1597,10 @@ __get_stella_flavour() {
 	echo $_s_flavour
 }
 
-
+# return 0 if empty or do not exist, 1 otherwize
 __is_dir_empty() {
-	if [ $(find "$1" -prune -empty -type d) ]; then
-		# dir is empty
-		echo "TRUE"
-	else
-		echo "FALSE"
-	fi
+	[ ! -d "$1" ] && return 0
+	return $([ -z "$(ls -A "$1" 2>/dev/null)" ])
 }
 
 # To get: /tmp/my.dir (like dirname)
@@ -1404,7 +1785,7 @@ __rel_to_abs_path_alternative_1(){
 		local _rel_path=$1
 		local _abs_root_path=$2
 
-	  local thePath=$_abs_root_path/$_rel_path
+	  local thePath="$_abs_root_path/$_rel_path"
 	  # if [[ ! "$1" =~ ^/ ]];then
 	  #   thePath="$PWD/$1"
 	  # else
@@ -1444,10 +1825,22 @@ __rel_to_abs_path_alternative_2(){
 
 	local F="$_abs_root_path/$_rel_path"
 
-	#echo "$(dirname $(readlink -e $F))/$(basename $F)"
-	echo "$(readlink -m $F)"
+	#echo "$(dirname "$(readlink -e $F))"/$(basename $F)"
+	echo "$(readlink -m "$F")"
 
 }
+
+
+# NOTE use a subprocess, cd and pwd
+# NOTE resolve symlinks
+# NOTE but all paths must exist !
+__rel_to_abs_path_alternative_3() {
+	local _rel_path=$1
+	local _abs_root_path=$2
+
+	echo "$(cd "$_abs_root_path/$_rel_path" && pwd -P)"
+}
+
 
 # How to go from _abs_path_root (ARG2) to _abs_path_to_translate (ARG1)
 # example :
@@ -1462,77 +1855,102 @@ __abs_to_rel_path() {
 
 	local result=""
 
-	if [ "$_abs_path_root" = "" ]; then
-		_abs_path_root=$STELLA_CURRENT_RUNNING_DIR
+	if [ "${_abs_path_root}" = "" ]; then
+		_abs_path_root="${STELLA_CURRENT_RUNNING_DIR}"
 	fi
 
-	_abs_path_root="$_abs_path_root"/
+	_abs_path_root="${_abs_path_root}"/
 
-	local common_part="$_abs_path_root" # for now
+	local common_part="${_abs_path_root}" # for now
 
-	if [ "$(__is_abs $_abs_path_to_translate)" = "FALSE" ]; then
-		result="$_abs_path_to_translate"
+	if [ "$(__is_abs ${_abs_path_to_translate})" = "FALSE" ]; then
+		result="${_abs_path_to_translate}"
 	else
 
-		case $_abs_path_root in
+		case ${_abs_path_root} in
 			/*)
 				while [ "${_abs_path_to_translate#$common_part}" = "${_abs_path_to_translate}" ]; do
 					# no match, means that candidate common part is not correct
 					# go up one level (reduce common part)
-					common_part="$(dirname $common_part)"
+					common_part="$(dirname "${common_part}")"
 
 					# and record that we went back
-					if [ -z "$result" ]; then
+					if [ -z "${result}" ]; then
 						result=".."
 					else
-						result="../$result"
+						result="../${result}"
 					fi
 
 				done
 
-				if [ "$common_part" = "/" ]; then
+				if [ "${common_part}" = "/" ]; then
 					# special case for root (no common path)
-					result="$result/"
+					result="${result}/"
 				fi
 
 
 				# since we now have identified the common part,
 				# compute the non-common part
 				forward_part="${_abs_path_to_translate#$common_part}"
-				if [[ -n $result ]] && [[ -n $forward_part ]]; then
-					result="$result$forward_part"
-				elif [[ -n $forward_part ]]; then
+				if [[ -n ${result} ]] && [[ -n ${forward_part} ]]; then
+					result="${result}${forward_part}"
+				elif [[ -n ${forward_part} ]]; then
 					result="${forward_part}"
 
 				else
-					if [[ ! -n $result ]] && [[ $common_part == "$_abs_path_to_translate" ]]; then
+					if [[ ! -n ${result} ]] && [[ "${common_part}" == "${_abs_path_to_translate}" ]]; then
 						result="."
 					fi
 				fi
 				;;
 
 			*)
-				result="$_abs_path_to_translate"
+				result="${_abs_path_to_translate}"
 				;;
 		esac
 	fi
 
-	if [ ${result:(-1)} = "/" ]; then
+	if [ "${result:(-1)}" = "/" ]; then
 		result="${result%?}"
 	fi
 	echo "${result}"
 
 }
 
-# NOTE use a subprocess, cd and pwd
-# NOTE resolve symlinks
-# NOTE but all paths must exist !
-__rel_to_abs_path_alternative_3() {
-	local _rel_path=$1
-	local _abs_root_path=$2
 
-	echo "$(cd "$_abs_root_path/$_rel_path" && pwd -P)"
+
+# This function transform any absolute symlink into a relative symlink
+# ARG _target convert this - could be a folder or a symlink
+# OPTIONS
+#       ONLY_LINKED_TO_SUBPATH_OF <path> : convert only absolute link which point to a subpath of a path given as option arg, do not convert the others link.
+# NOTE : some other implementation use readlink --relative-to which is not portable
+__symlink_abs_to_rel_path() {
+        local _target="$1"
+        local _opt="$2"
+
+        local _linked_target
+        local _linked_target_abs
+        local _symlink
+        local _only_subpath_link=OFF
+        local _path=
+        for o in ${_opt}; do
+                [ "$_only_subpath_link" = "ON" ] && _path="$o"
+                [ "$o" = "ONLY_LINKED_TO_SUBPATH_OF" ] && _only_subpath_link="ON"
+        done
+
+        _target="$(__rel_to_abs_path "${_target}")"
+        find "${_target}" -lname "/*" 2>/dev/null | while read _symlink; do \
+                        _linked_target_abs="$(readlink "${_symlink}")"; \
+                        _result1="TRUE"; _result2="TRUE"; \
+                        [ "${_only_subpath_link}" = "ON" ] && _result1=$(__is_logical_subpath "${_path}" "${_linked_target_abs}"); \
+                        [ "${_result1}" = "FALSE" ] && _result2=$(__is_logical_equalpath "${_path}" "${_linked_target_abs}"); \
+                        [ "${_result2}" = "TRUE" ] && _linked_target="$(__abs_to_rel_path "$(readlink "${_symlink}")" "$(dirname "${_symlink}")")" || continue; \
+                        echo "* CONVERT ${_symlink} LINKED to ${_linked_target_abs} INTO ${_linked_target}"; rm "${_symlink}"; ln -sf "${_linked_target}" "${_symlink}"; done
 }
+
+
+
+
 
 # init stella environment
 __init_stella_env() {
@@ -1866,12 +2284,12 @@ __compress() {
 		7Z)
 			if [ -d "$_target" ]; then
 				cd "$_target/.."
-				7z a -t7z "$_output_archive" "$(basename $_target)"
+				7z a -t7z "$_output_archive" "$(basename "${_target}")"
 				mv "$_output_archive" "$_output_archive"
 			fi
 			if [ -f "$_target" ]; then
-				cd "$(dirname $_target)"
-				7z a -t7z "$_output_archive" "$(basename $_target)"
+				cd "$(dirname "${_target}")"
+				7z a -t7z "$_output_archive" "$(basename "${_target}")"
 				mv "$_output_archive" "$_output_archive"
 			fi
 			;;
@@ -1879,8 +2297,8 @@ __compress() {
 			__log "DEBUG" "TODO: *********** ZIP NOT IMPLEMENTED"
 			;;
 		TAR*)
-				[ -d "$_target" ] && tar -c -v $_tar_flag -f "$_output_archive" -C "$_target/.." "$(basename $_target)"
-				[ -f "$_target" ] && tar -c -v $_tar_flag -f "$_output_archive" -C "$(dirname $_target)" "$(basename $_target)"
+				[ -d "$_target" ] && tar -c -v $_tar_flag -f "$_output_archive" -C "$_target/.." "$(basename "${_target}")"
+				[ -f "$_target" ] && tar -c -v $_tar_flag -f "$_output_archive" -C "$(dirname "${_target}")" "$(basename "${_target}")"
 			;;
 	esac
 
@@ -2405,11 +2823,6 @@ __ini_file() {
 
 
 # ARG COMMAND LINE MANAGEMENT---------------------------------------------------
-# TODO : MacOS alternative in go of getopt or brew gnu-getopt?
-#		https://github.com/droundy/goopt
-#		https://code.google.com/p/opts-go/
-#		https://godoc.org/code.google.com/p/getopt
-#		https://github.com/kesselborn/go-getopt
 #		STELLA_ARGPARSE_GETOPT : getopt command instead of "getopt"
 # DEFINITIONS :
 #				OPTION : an option begin with - or --

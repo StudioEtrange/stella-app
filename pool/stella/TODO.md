@@ -1,6 +1,5 @@
-*TODO & NOTES*
+# *TODO & NOTES*
 
-# trasnpiler to batch and bash : https://github.com/BYVoid/Batsh
 
 # Recipe, package manager inspiration
 
@@ -61,7 +60,10 @@ https://hackernoon.com/macbook-my-command-line-utilities-f8a121c3b019
 * [X] cointop https://github.com/miguelmota/cointop
 
 
+# bash : builder - transpiler 
 
+* to batch and bash : https://github.com/BYVoid/Batsh
+* bash static linked : https://github.com/robxu9/bash-static
 
 
 # Various
@@ -109,8 +111,18 @@ use
 
 
 # TODO List
-
+- [ ] path management (absolute, relative, ...) use https://github.com/bashup/realpaths ?
+- [ ] review argparse : too long !
+  - getopt alternatives implementation
+      https://github.com/droundy/goopt
+      https://code.google.com/p/opts-go/
+      https://godoc.org/code.google.com/p/getopt
+      https://github.com/kesselborn/go-getopt
+  - generate argument parser 
+      https://argbash.io/
+      https://github.com/matejak/argbash
 - [ ] use https://github.com/icy/bocker to turn stella app into docker
+- [ ] common-app : different behavior between __get_all_properties and __get_app_property. The first evaluate property with eval BUT NOT the second.
 - [X] bug recipe m4 (and maybe bison, automake, autoconf, ...) build is broken with glibc 2.28
 * https://www.reddit.com/r/archlinux/comments/97gsb1/glibc_update_breaks_buildroot/
 * https://bugs.archlinux.org/task/59562

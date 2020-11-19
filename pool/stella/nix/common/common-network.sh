@@ -370,6 +370,7 @@ $(command minikube "$@");
 # RANGE_END - range of port end
 # EXCLUDE_LIST_BEGIN - begin of a list of port to exclude
 # EXCLUDE_LIST_END - begin of a list of port to exclude
+# NOTE : if RANGE_BEGIN/RANGE_END empty will try to populate them with /proc/sys/net/ipv4/ip_local_port_range
 # SAMPLE :
 #	__find_free_port "2"
 #	__find_free_port "2" "UDP"
@@ -379,8 +380,8 @@ __find_free_port() {
 	local ports="${1:-1}"
 	local __opt="$2"
 
-	local range_begin="2048"
-	local range_end="65535"
+	local range_begin
+	local range_end
 	local __flag_begin=
 	local __flag_end=
 	local __exclude_list=
@@ -426,10 +427,25 @@ __find_free_port() {
 
 	# TODO : implement netstat alternatives : https://linuxize.com/post/check-listening-ports-linux/
 	local taken_ports
-	if [ "$__protocol" = "tcp" ]; then
-		taken_ports=( $( netstat -aln | egrep ^$__protocol | fgrep LISTEN | awk '{print $4}' | egrep -o '[0-9]+$' ) )
+
+	local __network_cmd
+	type ss &>/dev/null
+	if [ $? = 0 ]; then
+		__network_cmd="ss"
 	else
-		taken_ports=( $( netstat -aln | egrep ^$__protocol | awk '{print $4}' | egrep -o '[0-9]+$' ) )
+		type netstat &>/dev/null
+		if [ $? = 0 ]; then
+			__network_cmd="netstat"
+		else
+			# we cannot list occupied port
+			return
+		fi
+	fi
+
+	if [ "$__protocol" = "tcp" ]; then
+		taken_ports=( $( $__network_cmd -aln | egrep ^$__protocol | fgrep LISTEN | awk '{print $4}' | egrep -o '[0-9]+$' ) )
+	else
+		taken_ports=( $( $__network_cmd -aln | egrep ^$__protocol | awk '{print $4}' | egrep -o '[0-9]+$' ) )
 	fi
 
 	__random_number_list_from_range "$ports" "$range_begin" "$range_end" "$__flag_consecutive EXCLUDE_LIST_BEGIN ${taken_ports[@]} $__exclude_list EXCLUDE_LIST_END"
@@ -456,7 +472,7 @@ __check_tcp_port_open() {
 	else
 		type timeout &>/dev/null
 		if [ $? = 0 ]; then
-			 timeout ${__timeout} bash -c "</dev/tcp/${__host}/${__port}"
+			 timeout ${__timeout} bash -c "</dev/tcp/${__host}/${__port}" 2>/dev/null
 			 [ $? = 0 ] && echo "TRUE" || echo "FALSE"
 		else
 			# TODO : timeout nor nc are present we cannot check tcp port is open or not
@@ -544,10 +560,10 @@ __get_network_info() {
 	type netstat &>/dev/null
 	if [ $? = 0 ]; then
 		# NOTE : we pick the first default interface if we have more than one
-		STELLA_DEFAULT_INTERFACE=$(netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^default.*UG/ {thif=substr($0,65,10); print thif;}' | head -1)
+		STELLA_DEFAULT_INTERFACE="$(netstat -rn | awk '/^0.0.0.0/ {thif=substr($0,74,10); print thif;} /^default.*UG/ {thif=substr($0,65,10); print thif;}' | head -1)"
 	else
 		type ip &>/dev/null
-		[ $? = 0 ] && STELLA_DEFAULT_INTERFACE=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
+		[ $? = 0 ] && STELLA_DEFAULT_INTERFACE="$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)"
 	fi
 
 	# contains default ip
@@ -556,11 +572,11 @@ __get_network_info() {
 	type ifconfig &>/dev/null
 	if [ $? = 0 ]; then
 		# contains all available IP
-		STELLA_HOST_IP=$(ifconfig | grep -Eo 'inet (adr:|addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*')
+		STELLA_HOST_IP="$(ifconfig | grep -Eo 'inet (adr:|addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | tr '\n' ' ')"
 	else
 		type ip &>/dev/null
 		if [ $? = 0 ]; then
-			STELLA_HOST_IP="$(ip -o -4 addr | awk '{split($4, a, "/"); print a[1]}')"
+			STELLA_HOST_IP="$(ip -o -4 addr | awk '{split($4, a, "/"); print a[1]}' | tr '\n' ' ')"
 		else
 			# do not work on macos
 			type hostname &>/dev/null
@@ -611,6 +627,22 @@ __get_ip_from_hostname() {
 	else
 		echo "$(ping -q -c 1 -t 1 $1 2>/dev/null | grep -m 1 PING | cut -d "(" -f2 | cut -d ")" -f1)"
 	fi
+}
+
+# determine external IP
+# https://unix.stackexchange.com/a/194136
+# TODO : work only ipv4
+__get_ip_external() {
+	
+	type dig &>/dev/null
+	if [ $? = 0 ]; then
+		__result="$(dig @resolver1.opendns.com A myip.opendns.com +short -4)"
+		#__result="$(dig @resolver1.opendns.com AAAA myip.opendns.com +short -6)"
+	else
+		__result="$(curl -s ipinfo.io/ip)"
+	fi
+
+	echo "${__result}"
 }
 
 

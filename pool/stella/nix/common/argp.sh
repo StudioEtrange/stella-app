@@ -1184,11 +1184,12 @@ process_params() {
         }
         COUNT=$(( COUNT + 1 ))
 
-        [[ "$VALUE" ]] || {
-              [[ "$MANDATORY" == "1" ]] && abend 1 "$PARAM_NAME is mandatory"
+        [[ "$VALUE" ]] && {
+            check_type_and_value "$PARAM_NAME" "$VALUE" "$TYPE" "$RANGE"
+        } || {
+            [[ "$MANDATORY" == "1" ]] && abend 1 "$PARAM_NAME is mandatory"
         }
-        check_type_and_value "$PARAM_NAME" "$VALUE" "$TYPE" "$RANGE"
-
+        
         [[ $END_OF_DEFINED_PARAM ]] && break;
 
         ((SHIFT_NUM++))
@@ -1367,10 +1368,13 @@ parse_options_and_params() {
     local shift_option=0 shift_param=0 TMP= something_to_parse=1
 
     TMP="$@"
-    # if there is nothing
-    [[ ${#TMP} -eq 0 ]] && something_to_parse=
-    # if there is only extra arg
-    [[ ${#TMP} -eq $((ENDING_ARG_SIZE + 3)) ]] && something_to_parse=
+
+    # total size of options and parameters without ending options if any (--)
+    TOTAL_SIZE="${#TMP}"
+    [[ $ENDING_ARG_SIZE -gt 0 ]] && TOTAL_SIZE=$(( TOTAL_SIZE - ENDING_ARG_SIZE - 3))
+
+    # if there is nothing left
+    [[ ${TOTAL_SIZE} -eq 0 ]] && something_to_parse=
 
     [[ $something_to_parse ]] && {
       # reorder @ and put options at the beginning of ${ARGS[@]}
@@ -1549,7 +1553,7 @@ initialise() {
     GARGP_INT_RANGE_REGEX="$GARGP_INT_REGEX:$GARGP_INT_REGEX"
     GARGP_FLOAT_REGEX="[+-]*[[:digit:]]+(\\.[[:digit:]]+)*"
     GARGP_FLOAT_RANGE_REGEX="$GARGP_FLOAT_REGEX:$GARGP_FLOAT_REGEX"
-    # FIXME: this needs a few tweaks:
+    # TODO FIXME: this needs a few tweaks:
     GARGP_URL_REGEX="(nfs|http|https|ftp|file)://[[:alnum:]_.-]*[^[:space:]]*"
 
     # cron jobs have TERM=dumb and tput throws errors:
