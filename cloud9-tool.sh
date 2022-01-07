@@ -23,7 +23,7 @@ DEFAULT_SERVICE_NAME="cloud9-tool"
 # DOCKER IMAGES INFO --------------------------------------
 DEFAULT_DOCKER_IMAGE="sapk/cloud9"
 DEFAULT_DOCKER_IMAGE_VERSION="alpine"
-DEFAULT_DOCKER_PLUGIN_BINDFS="studioetrange/bindfs:1.1"
+DEFAULT_DOCKER_PLUGIN_BINDFS="studioetrange/bindfs:1.2"
 
 # USAGE --------------------------------------
 function usage() {
