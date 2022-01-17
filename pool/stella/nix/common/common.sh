@@ -10,7 +10,30 @@ _STELLA_COMMON_INCLUDED_=1
 # VARIOUS-----------------------------
 
 
+# https://stackoverflow.com/a/17975418
+# https://stackoverflow.com/a/49886076
+# add a scheduled command without duplication
+__crontab_add() {
+	local __cmd="$1"
+	local __username="$2"
+	if [ "${__username}" = "" ]; then
+		( crontab -l 2>/dev/null || : ; echo "${__cmd}" ) | sort - | uniq - | crontab -
+	else
+		( crontab -u ${__username} -l 2>/dev/null || : ; echo "${__cmd}" ) | sort - | uniq - | crontab -u ${__username} -
+	fi
+}
 
+# remove scheduled command without duplication
+# __crontab_remove '0 * * * * /home/me/myfunction myargs > /home/me/myfunction.log 2>&1' "$(id -un)"
+__crontab_remove() {
+	local __cmd="$1"
+	local __username="$2"
+	if [ "${__username}" = "" ]; then
+		( crontab -l 2>/dev/null | grep -v -F "${__cmd}" || : ) | crontab -
+	else
+		( crontab -u ${__username} -l 2>/dev/null | grep -v -F "${__cmd}" || : ) | crontab -u ${__username} -
+	fi
+}
 
 # output a formated table
 # input :
@@ -22,6 +45,7 @@ _STELLA_COMMON_INCLUDED_=1
 #                       __format_table "SEPARATOR "$'\t'""
 # sample :
 #               printf "head_1 "$'\t'" head_2\n val_1 "$'\t'" val_2" | __format_table "ALIGN_RIGHT CELL_DELIMITER |"
+#				printf "head_1 | head_2 | head_3 \n val_1 || val_3" | __format_table "SEPARATOR |"
 __format_table() {
         declare __str
         __str=$(</dev/stdin);
@@ -40,24 +64,25 @@ __format_table() {
                 [ "$o" = "SEPARATOR" ] && __flag_separator="ON"
         done
        
+		# NOTE : -e s/"${__separator}${__separator}"/"${__separator} ${__separator}"/g
+		#		add a blank character for an empty cell because column command have a bug with empty column
         if [ "${__cell_delim}" = "" ]; then
                 if [ "${__align_right}" = "1" ]; then
-                        # NOTE : To work around the requirement entries in the leftmost column must be of equal width« insert a dummy column and remove it later
+                        # NOTE : To work around the requirement entries in the leftmost column must be of equal width insert a dummy column and remove it later
                         #       https://stackoverflow.com/a/18022947/5027535
-                        echo "${__str}" | sed -e s/^/FOO"${__separator}"/ | rev | column -s "${__separator}" -t | rev | cut -c4-
+                        echo "${__str}" | sed -e s/"${__separator}${__separator}"/"${__separator} ${__separator}"/g -e s/"${__separator}${__separator}"/"${__separator} ${__separator}"/g | sed -e s/^/FOO"${__separator}"/ | rev | column -s "${__separator}" -t | rev | cut -c4-
                 else
-                        echo "${__str}" | column -s "${__separator}" -t
+                        echo "${__str}" | sed -e s/"${__separator}${__separator}"/"${__separator} ${__separator}"/g -e s/"${__separator}${__separator}"/"${__separator} ${__separator}"/g | column -s "${__separator}" -t
                 fi
         else
                 if [ "${__align_right}" = "1" ]; then
-                        echo "${__str}" | sed -e s/"${__separator}/${__separator}${__cell_delim}${__separator}"/g | sed -e s/^/FOO"${__separator}"/  | rev | column -s "${__separator}" -t | rev | cut -c4- 
+                        echo "${__str}" | sed -e s/"${__separator}${__separator}"/"${__separator} ${__separator}"/g -e s/"${__separator}${__separator}"/"${__separator} ${__separator}"/g | sed -e s/"${__separator}/${__separator}${__cell_delim}${__separator}"/g | sed -e s/^/FOO"${__separator}"/  | rev | column -s "${__separator}" -t | rev | cut -c4- 
                 else
-                        echo "${__str}" | sed -e s/"${__separator}/${__separator}${__cell_delim}${__separator}"/g | column -s "${__separator}" -t
+                        echo "${__str}" | sed -e s/"${__separator}${__separator}"/"${__separator} ${__separator}"/g -e s/"${__separator}${__separator}"/"${__separator} ${__separator}"/g | sed -e s/"${__separator}/${__separator}${__cell_delim}${__separator}"/g | column -s "${__separator}" -t
                 fi
         fi
-
+		echo -n
 }
-
 
 # return a randomly number list separated by space
 # PARAMETERS
@@ -1499,11 +1524,11 @@ __filter_list_with_list() {
 	local __result_list=
 	if [ "$__opt_keep" = "ON" ]; then
 		for s in ${__list_src}; do
-			[[ " ${__list_filter} " =~ .*\ ${s}\ .* ]] && __result_list="${__result_list} ${s}"
+			[[ " ${__list_filter} " =~ .*\ "${s}"\ .* ]] && __result_list="${__result_list} ${s}"
 		done
 	else
 		for s in ${__list_src}; do
-			[[ " ${__list_filter} " =~ .*\ ${s}\ .* ]] || __result_list="${__result_list} ${s}"
+			[[ " ${__list_filter} " =~ .*\ "${s}"\ .* ]] || __result_list="${__result_list} ${s}"
 		done
 	fi
 
@@ -1533,15 +1558,18 @@ __trim() {
 __string_contains() { [ -z "${1##*$2*}" ] && [ -n "$1" -o -z "$2" ]; }
 
 # return 0 if list contains items, else 1
-# __list_contains "aa bb xx" "bb" 
+# __list_contains "aa bb xx" "bb"
 # echo $? ==> 0
-# __list_contains "aa bb xx" "b" 
+# __list_contains "aa bb xx" "b"
 # echo $? ==> 1
-# __list_contains "aa bb xx" "bb xx" 
+# __list_contains "aa bb xx" "bb xx"
 # echo $? ==> 0
-# __list_contains "aa bb xx" "aa xx" 
+# __list_contains "aa bb xx" "aa xx"
 # echo $? ==> 1
 # https://stackoverflow.com/a/20473191/5027535
+# in a test : 
+# if $STELLA_API list_contains "aa bb xx" "bb"; then
+# fi
 __list_contains() {
   local _list="$1"
   local _item="$2"
@@ -1554,7 +1582,10 @@ __list_contains() {
 # aa aaa b bb cc ddd
 __list_filter_duplicate() {
 	local _list="$1"
-	_list="$(printf '%s\n' ${_list} | sort | uniq | tr '\n' ' ')"
+	# this alter order do not use :s
+	#_list="$(printf '%s\n' ${_list} | sort | uniq | tr '\n' ' ')"
+
+	_list="$(printf '%s\n' ${_list} | awk '!tab[$0]++' | tr '\n' ' ')"
 
 	# remove trailing whitespace and return list
 	echo -n "${_list%"${_list##*[![:space:]]}"}"
@@ -2351,11 +2382,20 @@ __uncompress() {
 				tar xzf "$FILE_PATH" --strip-components=1 2>/dev/null || __untar-strip "$FILE_PATH" "$UNZIP_DIR"
 			fi
 			;;
-		*.xz | *.bz2)
+		*.xz | *.tar.bz2 | *.tbz2 | *.tbz)
 			if [ "$_opt_strip" = "OFF" ]; then
 				tar xf "$FILE_PATH"
 			else
 				tar xf "$FILE_PATH" --strip-components=1 2>/dev/null || __untar-strip "$FILE_PATH" "$UNZIP_DIR"
+			fi
+			;;
+		*.bz2|*.bz)
+			if [ "$_opt_strip" = "OFF" ]; then
+				cp -f "$FILE_PATH" .
+				bzip2 -d *
+			else
+				# NOTE : maybe not needed because a bz2 file contains always only one files and not a directory ?
+				__bzip2-strip "$FILE_PATH" "$UNZIP_DIR"
 			fi
 			;;
 		*.7z)
@@ -2371,6 +2411,7 @@ __uncompress() {
 			;;
 		*)
 			__log "INFO" " ** ERROR : Unknown archive format"
+			;;
 	esac
 }
 
@@ -2503,6 +2544,28 @@ __sevenzip-strip() {
     rm -Rf "$temp"
 }
 
+
+
+__bzip2-strip() {
+    local zip=$1
+    local dest=${2:-.}
+    local temp=$(mktmpdir)
+
+	cp -f $zip $temp/
+	cd $temp
+    bzip2 -d *
+
+    shopt -s dotglob
+    local f=("$temp"/*)
+
+    if (( ${#f[@]} == 1 )) && [[ -d "${f[0]}" ]] ; then
+        mv "$temp"/*/* "$dest"
+    else
+        mv "$temp"/* "$dest"
+    fi
+    rm -Rf "$temp"
+}
+
 # SCM ---------------------------------------------
 # https://vcversioner.readthedocs.org/en/latest/
 # TODO : should work only if at least one tag exist ?
@@ -2572,6 +2635,8 @@ __get_key() {
 # get all keys from an ini file
 # or get all keys from a specific section
 # or get a specific key (which may be from a specitic section or not)
+# TODO : do not support section name like [[radarr]]
+# TODO : do not support other character than [a-zA-Z0-9._]{1,}[[:space:]]*= in key/value pair (see line 208 in read_ini.sh)
 # OPTION
 # ASSIGN|PRINT will assign to each key with its own value OR will only print values (PRINT is default mode)
 # EVAL will eval each key value before AFFECT it or PRINT it
@@ -2603,25 +2668,25 @@ __get_keys() {
 	_flag_key=
 	_opt_key=
 	_opt_eval=OFF
-  _opt_assign=OFF
+  	_opt_assign=OFF
 	for o in $_OPT; do
 		[ "$o" = "PREFIX" ] && _opt_section_prefix=ON
 		[ "$o" = "EVAL" ] && _opt_eval=ON
-    [ "$o" = "ASSIGN" ] && _opt_assign=ON
-    [ "$o" = "PRINT" ] && _opt_assign=OFF
+    	[ "$o" = "ASSIGN" ] && _opt_assign=ON
+    	[ "$o" = "PRINT" ] && _opt_assign=OFF
 		[ "$_flag_section" = "ON" ] && _opt_section="${o}" && _flag_section=OFF
 		[ "$o" = "SECTION" ] && _flag_section=ON
 		[ "$_flag_key" = "ON" ] && _opt_key="${o}" && _flag_key=OFF
 		[ "$o" = "KEY" ] && _flag_key=ON
 	done
 
-  # escape regexp special characters
+  	# escape regexp special characters
 	# http://stackoverflow.com/questions/407523/escape-a-string-for-a-sed-replace-pattern
-  # TODO do we need this two lines below ?
+  	# TODO do we need this two lines below ?
 	#_opt_section=$(echo ${_opt_section} | sed -e 's/[]\/$*.^|[]/\\&/g')
 	#_opt_key=$(echo "$_opt_key" | sed -e 's/\\/\\\\/g')
 
-  # unset some specific asked key
+  	# unset some specific asked key
 	if [ "${_opt_assign}" = "ON" ]; then
 		if [ ! "${_opt_key}" = "" ]; then
 			if [ "${_opt_section_prefix}" = "ON" ]; then
