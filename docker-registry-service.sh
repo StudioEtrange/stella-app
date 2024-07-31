@@ -215,7 +215,7 @@ fi
 
 if [ "$ACTION" = "secure" ]; then
   __test_sudo
-  echo " ** Setting $REGISTRY_SHORT an authorized insecure registry"
+  echo " ** Setting $REGISTRY_SHORT an authorized secure registry"
   __set_docker_daemon_options '."insecure-registries" -= [ "'$REGISTRY_SHORT'" ]'
   __get_docker_daemon_options ''
   echo " ** Please restart docker daemon"
