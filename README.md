@@ -102,7 +102,7 @@ nor polluted the system.
   ./minio-service.sh -h
 ```
 
-Use it with a docker volume manager
+  Use it with a docker volume manager
 
 
 ```

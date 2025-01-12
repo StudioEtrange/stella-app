@@ -23,39 +23,59 @@ _STELLA_PLATFORM_INCLUDED_=1
 
 __get_os_from_distro() {
 	local _distro=$1
-
+	
 	case $_distro in
-		"Red Hat Enterprise Linux")
-			echo "rhel"
-			;;
-		Ubuntu|ubuntu*)
-			echo "ubuntu"
-			;;
-		Debian|debian*)
-			echo "debian"
-			;;
-		CentOS*|centos*)
-			echo "centos"
-			;;
-		archlinux*)
-			echo "archlinux"
-			;;
-		boot2docker*)
-			echo "linuxgeneric"
-			;;
-		Alpine*|alpine*)
-			echo "alpine"
-			;;
 		"Mac OS X"|macos)
-			echo "macos"
-			;;
-		*Windows*|*windows*)
-			echo "windows"
-			;;
-		*)
-			echo "linuxgeneric"
-			;;
+	 		_distro="macos"
+	 		;;
 	esac
+
+	# minimize
+	_distro=$(echo "${_distro}" | tr '[:upper:]' '[:lower:]')
+
+	
+
+	# remove spaces
+	_distro="${_distro// /_}"
+
+	if [[ "${_distro}" = "unknown" ]] && [[ "${OSTYPE}" =~ "linux" ]]; then
+		_distro="linuxgeneric"
+	fi
+
+	echo $_distro
+
+	# case $_distro in
+	# 	"Red Hat Enterprise Linux")
+	# 		echo "rhel"
+	# 		;;
+	# 	Ubuntu|ubuntu*)
+	# 		echo "ubuntu"
+	# 		;;
+	# 	Debian|debian*)
+	# 		echo "debian"
+	# 		;;
+	# 	CentOS*|centos*)
+	# 		echo "centos"
+	# 		;;
+	# 	archlinux*)
+	# 		echo "archlinux"
+	# 		;;
+	# 	boot2docker*)
+	# 		echo "linuxgeneric"
+	# 		;;
+	# 	Alpine*|alpine*)
+	# 		echo "alpine"
+	# 		;;
+	# 	"Mac OS X"|macos)
+	# 		echo "macos"
+	# 		;;
+	# 	*Windows*|*windows*)
+	# 		echo "windows"
+	# 		;;
+	# 	*)
+	# 		echo "linuxgeneric"
+	# 		;;
+	# esac
 }
 
 
@@ -65,20 +85,43 @@ __get_os_from_distro() {
 __get_platform_from_os() {
 	local _os=$1
 
-	case $_os in
-		centos|archlinux|ubuntu|debian|linuxgeneric|rhel|alpine)
-			echo "linux"
-			;;
-		macos)
-			echo "darwin"
-			;;
+	if [[ "${OSTYPE}" =~ "linux" ]]; then
+		echo "linux"
+		return
+	fi
+
+	if [[ "${OSTYPE}" =~ "darwin" ]]; then
+		echo "darwin"
+		return
+	fi
+
+	case ${_os} in
 		windows)
 			echo "windows"
+			;;
+		unknown)
+			echo "unknown"
 			;;
 		*)
 			echo "unknown"
 			;;
 	esac
+
+
+	# case $_os in
+	# 	centos|archlinux|ubuntu|debian|linuxgeneric|rhel|alpine)
+	# 		echo "linux"
+	# 		;;
+	# 	macos)
+	# 		echo "darwin"
+	# 		;;
+	# 	windows)
+	# 		echo "windows"
+	# 		;;
+	# 	*)
+	# 		echo "unknown"
+	# 		;;
+	# esac
 }
 
 __get_platform_suffix() {
@@ -104,7 +147,7 @@ __get_platform_suffix() {
 __get_os_env_from_kernel() {
 	local _kernel=$1
 
-	case $kernel in
+	case $_kernel in
 		*MINGW64*)
 			echo "msys2-mingw64"
 			;;
@@ -122,6 +165,14 @@ __get_os_env_from_kernel() {
 
 __set_current_platform_info() {
 
+
+	
+	
+	# some old configurations forgive to set sbin folders as PATH values
+	# mainly on centos
+	# https://forums.centos.org/viewtopic.php?t=53983
+	PATH="${PATH}:/usr/local/sbin:/usr/sbin:/sbin"
+
 	# call screenFetch once by setting/unsetting  exit function and sourcing screenfetch
 	# https://github.com/KittyKatt/screenFetch
 	exit() {
@@ -132,14 +183,18 @@ __set_current_platform_info() {
 
 
 	STELLA_CURRENT_OS=$(__get_os_from_distro "$distro")
+	# TODO do not know what is the purpose of STELLA_CURRENT_OS_ENV
 	STELLA_CURRENT_OS_ENV=$(__get_os_env_from_kernel "$kernel")
 	STELLA_CURRENT_PLATFORM=$(__get_platform_from_os "$STELLA_CURRENT_OS")
 	STELLA_CURRENT_PLATFORM_SUFFIX=$(__get_platform_suffix "$STELLA_CURRENT_PLATFORM")
 
+	# current running arch of the os : x86_64, aarch64 ...
+	STELLA_CURRENT_ARCH=$(uname -m | tr '[:upper:]' '[:lower:]')
+	[ "$STELLA_CURRENT_ARCH " = "" ] && STELLA_CURRENT_ARCH="unknown-arch"
 
-	if [[ -n `which nproc 2> /dev/null` ]]; then
-		STELLA_NB_CPU=`nproc`
-	elif [[ -n `which sysctl 2> /dev/null` ]]; then
+	if type -P nproc &>/dev/null; then
+		STELLA_NB_CPU=$(nproc)
+	elif type -P sysctl &>/dev/null; then
 		STELLA_NB_CPU=`sysctl hw.ncpu 2> /dev/null | awk '{print $NF}'`
 	else
 		STELLA_NB_CPU=1
@@ -156,7 +211,7 @@ __set_current_platform_info() {
 	# CPU 64Bits capable
 	STELLA_CPU_ARCH=
 	if [ "$STELLA_CURRENT_PLATFORM" = "linux" ]; then
-		grep -q -o -w 'lm' /proc/cpuinfo && STELLA_CPU_ARCH=64 || echo STELLA_CPU_ARCH=32
+		grep -q -o -w 'lm' /proc/cpuinfo && STELLA_CPU_ARCH=64 || STELLA_CPU_ARCH=32
 	fi
 
 	if [ "$STELLA_CURRENT_PLATFORM" = "darwin" ]; then
@@ -179,7 +234,8 @@ __set_current_platform_info() {
 
 	__get_network_info
 
-	__override_platform_command
+	__platform_specifity
+	
 
 }
 
@@ -190,7 +246,7 @@ __get_macos_version() {
 }
 
 
-__override_platform_command() {
+__platform_specifity() {
 	#http://unix.stackexchange.com/questions/30091/fix-or-alternative-for-mktemp-in-os-x
 	if [ "$STELLA_CURRENT_PLATFORM" = "darwin" ]; then
 		function mktmp() {
@@ -213,11 +269,9 @@ __override_platform_command() {
 	fi
 
 	if [ "$STELLA_CURRENT_PLATFORM" = "darwin" ]; then
-		#GETOPT_CMD=PURE_BASH
-		STELLA_ARGPARSE_GETOPT_DEFAULT=PURE_BASH
+		STELLA_ARGPARSE_GETOPT_DEFAULT="PURE_BASH"
 	else
-		#GETOPT_CMD=getopt
-		STELLA_ARGPARSE_GETOPT_DEFAULT=getopt
+		STELLA_ARGPARSE_GETOPT_DEFAULT="getopt"
 	fi
 
 
@@ -253,6 +307,7 @@ __stella_requirement() {
 # Test if binary is present, if not :
 #		if binary is OPTIONAL, just print warn and guidelines to install it as a STELLA_FEATURE or as a package SYSTEM
 #		if binary is not OPTIONAL, it will install it as a STELLA_FEATURE or provide guideline to install it as a package SYSTEM
+#		INTERNAL will install it as a STELLA_FEATURE installed in stella feature workspace instead of current app workspace
 __require() {
 	local _artefact="$1" # binary to test
 	local _id="$2" # feature name (for stella) or sys name (for package manager)
@@ -263,15 +318,18 @@ __require() {
 	# OPTIONAL
 	# SYSTEM
 	# STELLA_FEATURE
+	# INTERNAL
 	local _opt_optional=OFF
-	local _opt_system=ON
-	local _opt_stella_feature=OFF
+	local _opt_system=OFF
+	local _opt_stella_feature=ON
+	local _opt_internal=
 
 
 	for o in $_OPT; do
 		[ "$o" = "OPTIONAL" ] && _opt_optional=ON
 		[ "$o" = "SYSTEM" ] && _opt_system=ON && _opt_stella_feature=OFF && _opt_stella_toolset=OFF
 		[ "$o" = "STELLA_FEATURE" ] && _opt_system=OFF && _opt_stella_feature=ON && _opt_stella_toolset=OFF
+		[ "$o" = "INTERNAL" ] && _opt_system=OFF && _opt_stella_feature=ON && _opt_stella_toolset=OFF && _opt_internal="INTERNAL"
 	done
 
 	echo "** REQUIRE $_id ($_artefact)"
@@ -305,12 +363,22 @@ __require() {
 			else
 				if [ "$_opt_stella_feature" = "ON" ]; then
 					echo "** REQUIRE $_id : installing it from stella"
-					(__feature_install "$_id" "INTERNAL NON_DECLARED")
+					#echo -------------------------------------------
+					( __feature_install "$_id" "NON_DECLARED $_opt_internal" )
+
+					#echo REALLY ENABLED 1 ${FEATURE_LIST_ENABLED[@]}
+					#echo $PATH
+
+					#echo -------------------------------------------
+					echo "** REQUIRE $_id : init it"
 					__feature_init "$_id" "NON_DECLARED"
+					echo "** features now enabled ${FEATURE_LIST_ENABLED[@]}"
+					#echo $PATH
+					#echo -------------------------------------------
 				else
 					echo "** ERROR -- Please install $_artefact"
 					echo "-- For a system install : try stella.sh sys install $_id OR your regular OS package manager"
-					echo "-- For an install from Stella : try stella.sh feature install $_id"
+					echo "-- For an install as a stella feature : try stella.sh feature install $_id"
 					_result=1
 					exit 1
 				fi
@@ -395,7 +463,7 @@ __default_runtime_search_path() {
 			# the 'include' command is relative
 			local _oldpwd="$PWD"
 			cd "/etc" >/dev/null
-			interp=$(__get_elf_interpreter_linux "$(which ls)")
+			interp=$(__get_elf_interpreter_linux "$(type -P ls 2>/dev/null)")
 			echo $interp
 			case "$interp" in
 			*/ld-musl-*)
@@ -656,7 +724,7 @@ __get_current_package_manager() {
 	esac
 
 	for p in $plist; do
-		if [[ -n `which $p 2> /dev/null` ]]; then
+		if type -P "${p}" &>/dev/null; then
 			_package_manager="$p"
 			break
 		fi
@@ -791,7 +859,7 @@ __ansible_play_localhost() {
 	local __opt="$3"
 
 	local __tags=
-	local __python="-e ansible_python_interpreter=$(which python)"
+	local __python="-e ansible_python_interpreter=$(type -P python 2>/dev/null)"
 	local __debug="-v"
 	for o in ${__opt}; do
 		[ "$__tags" = "1" ] && __tags="--tags=$o"
@@ -898,11 +966,12 @@ __sys_install_brew() {
 
 
 	echo " ** Check Homebrew"
-	if [[ -n `which brew 2> /dev/null` ]]; then
+	#if [[ -n `which brew 2> /dev/null` ]]; then
+	if type -P brew &>/dev/null; then
 		echo " ** brew doctor"
 		brew doctor
-		local _brewLocation=`which brew`
-		local _appLocation=`brew --prefix`
+		local _brewLocation="$(type -P brew 2>/dev/null)"
+		local _appLocation="$(brew --prefix)"
 		echo " ** -------------- **"
 		echo "Homebrew is installed in $_brewLocation"
 		echo "Homebrew apps are run from $_appLocation"
@@ -953,7 +1022,12 @@ __sys_install_build-chain-standard() {
 
 	else
 		#bison util-linux build-essential gcc-multilib g++-multilib g++ pkg-config
-		__use_package_manager "INSTALL" "build-chain-standard" "apt-get build-essential gcc-multilib g++-multilib | yum gcc gcc-c++ make kernel-devel | apk gcc g++ make"
+		# NOTE : The gcc-multilib g++-multilib package are not available for arm64/aarch64 architecture
+		if [ "$STELLA_CURRENT_ARCH" = "aarch64" ]; then 
+			__use_package_manager "INSTALL" "build-chain-standard" "apt-get build-essential | yum gcc gcc-c++ make kernel-devel | apk gcc g++ make"
+		else
+			__use_package_manager "INSTALL" "build-chain-standard" "apt-get build-essential gcc-multilib g++-multilib | yum gcc gcc-c++ make kernel-devel | apk gcc g++ make"
+		fi
 	fi
 }
 __sys_remove_build-chain-standard() {

@@ -211,7 +211,7 @@ __prepare_build() {
 	echo "====> Build Link path mode : $STELLA_BUILD_LINK_PATH"
 	echo "====> Linked libs from stella features : $STELLA_LINKED_LIBS_LIST"
 	echo "====> Linked libs from system : $STELLA_LINKED_LIBS_SYSTEM_LIST"
-	echo "====> pkg-config tool : $(which pkg-config)"
+	echo "====> pkg-config tool : $(type -P pkg-config 2>/dev/null)"
 	echo "====> env PKG_CONFIG_PATH (additional search path for pkg-config): $PKG_CONFIG_PATH"
 	echo "====> pkg-config full search path : $(__pkgconfig_search_path)"
 	echo "** FOLDERS"
@@ -765,7 +765,7 @@ __inspect_and_fix_build() {
 	local path="$1"
 	local OPT="$2"
 	local _result=0
-	local o=
+	
 	# INCLUDE_LINKED_LIB <expr> -- include these linked libs
 	# EXCLUDE_LINKED_LIB <expr> -- exclude these linked libs
 	# INCLUDE_LINKED_LIB is apply first, before EXCLUDE_LINKED_LIB
@@ -776,7 +776,17 @@ __inspect_and_fix_build() {
 	# NO_CHECK do not check files
 
 	[ "$1" = "" ] && return
+	
+	[ -z "$(__filter_list "$path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return $_result
 
+	local f=
+	if [ -d "$path" ]; then
+		for f in  "$path"/*; do
+			__inspect_and_fix_build "$f" "$OPT" || _result=1
+		done
+	fi
+
+	local o=
 	# fix files (default : ON)
 	local _opt_fix_files=ON
 	# check build (default : ON)
@@ -792,16 +802,6 @@ __inspect_and_fix_build() {
 	fi
 
 
-	[ -z "$(__filter_list "$path/*" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return $_result
-
-
-
-	local f=
-	if [ -d "$path" ]; then
-		for f in  "$path"/*; do
-			__inspect_and_fix_build "$f" "$OPT"
-		done
-	fi
 
 	if [ -f "$path" ]; then
 		# fixing built files

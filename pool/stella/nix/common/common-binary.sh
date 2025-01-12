@@ -71,14 +71,16 @@ _STELLA_COMMON_BINARY_INCLUDED_=1
 #								https://github.com/ncopa/lddtree
 #
 #						MACOS :
-#								Use DYLD_LIBRARY_PATH instead of LD_LIBRARY_PATH
+#								Environment variable is DYLD_LIBRARY_PATH instead of LD_LIBRARY_PATH
 #
 #						LINUX DEBUG :
 #								LD_TRACE_LOADED_OBJECTS=1 LD_DEBUG=libs ./program
 #								LD_DEBUG values http://www.bnikolic.co.uk/blog/linux-ld-debug.html
 #
 #						MACOS DEBUG :
-#								DYLD_PRINT_LIBRARIES=y ./program
+#								DYLD_PRINT_LIBRARIES=1 : print loaded libraries
+#								DYLD_PRINT_SEARCHING=1 : print search libraries result 
+#								DYLD_PRINT_LIBRARIES=1 DYLD_PRINT_SEARCHING=1 ./program
 #
 # 	 	LINUX RPATH : PATCHELF
 #							using patchelf  "--set-rpath, --shrink-rpath and --print-rpath now prefer DT_RUNPATH over DT_RPATH,
@@ -163,6 +165,9 @@ __check_binary_file() {
 	local OPT="$2"
 	local _result=0
 
+
+	[ -z "$(__filter_list "$path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return $_result
+
 	local f
 	if [ -d "$path" ]; then
 		for f in  "$path"/*; do
@@ -191,7 +196,6 @@ __check_binary_file() {
 		[ "$o" = "NON_RELOCATE" ] && _flag_relocate=NO
 	done
 
-	[ -z "$(__filter_list "$path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return $_result
 
 	if __is_bin "$path"; then
 
@@ -242,6 +246,8 @@ __tweak_binary_file() {
 	local _path="$1"
 	local OPT="$2"
 
+	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return
+	
 	local f
 	if [ -d "$_path" ]; then
 		for f in  "$_path"/*; do
@@ -275,7 +281,6 @@ __tweak_binary_file() {
 		[ "$o" = "WANTED_RPATH" ] && _flag_wanted_rpath=ON && _opt_wanted_rpath=ON
 	done
 
-	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return
 
 	if __is_bin "$_path"; then
 
@@ -367,9 +372,12 @@ __tweak_rpath() {
 	# EXCLUDE_FILTER <expr> -- exclude these files to tweak
 	# INCLUDE_FILTER is apply first, before EXCLUDE_FILTER
 
+	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $_OPT")" ] && return
+
+	local f
 	if [ -d "$_path" ]; then
 		for f in  "$_path"/*; do
-			__tweak_rpath "$f" "$_OPT"
+			__tweak_rpath "$f" "$_OPT" 
 		done
 	fi
 
@@ -380,7 +388,7 @@ __tweak_rpath() {
 		[ "$o" = "ABS_RPATH" ] && _rel_rpath=OFF && _abs_rpath=ON
 	done
 
-	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $_OPT")" ] && return
+
 
 	if __is_executable_or_shareable_bin "$_path"; then
 		local _rpath_values=
@@ -592,6 +600,9 @@ __check_rpath() {
 	local t
 	local _result=0
 
+	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return $_result
+
+	local f
 	if [ -d "$_path" ]; then
 		for f in  "$_path"/*; do
 			__check_rpath "$f" "$OPT" || _result=1
@@ -612,7 +623,6 @@ __check_rpath() {
 		[ "$o" = "WANTED_RPATH" ] && _flag_missing_rpath=ON && _opt_missing_rpath=ON
 	done
 
-	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return $_result
 
 	if __is_executable_or_shareable_bin "$_path"; then
 		t="$(__get_rpath $_path)"
@@ -715,11 +725,10 @@ __check_linked_lib() {
 	# INCLUDE_FILTER is apply first, before EXCLUDE_FILTER
 	# REL_PATH -- linked lib should be linked with relative path
 	# ABS_PATH -- linked lib should be linked with absolute path
-	local line=
-	local linked_lib_list=
-	local linked_lib=
 
 	local _result=0
+
+	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $_OPT")" ] && return $_result
 
 	if [ -d "$_path" ]; then
 		for f in  "$_path"/*; do
@@ -734,7 +743,10 @@ __check_linked_lib() {
 		[ "$o" = "ABS_PATH" ] && _opt_abs_path=ON && _opt_rel_path=OFF
 	done
 
-	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $_OPT")" ] && return $_result
+	local line=
+	local linked_lib_list=
+	local linked_lib=
+
 
 	if __is_executable_or_shareable_bin "$_path"; then
 
@@ -983,6 +995,8 @@ __tweak_linked_lib() {
 	local _file=$1
 	local OPT="$2"
 
+	[ -z "$(__filter_list "$_file" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return
+
 	local f=
 	if [ -d "$_file" ]; then
 		for f in  "$_file"/*; do
@@ -1040,7 +1054,7 @@ __tweak_linked_lib() {
 		[ "$o" = "REL_RELINK" ] && _flag_rel_relink=ON && _opt_rel_relink=ON && _abs_link_to_rel=OFF && _rel_link_to_abs=OFF && _opt_rel_link_force=OFF && _opt_abs_link_force=OFF && _opt_abs_relink=OFF
 	done
 
-	[ -z "$(__filter_list "$_file" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return
+
 
 	# NOTE : do not use STELLA_CURRENT_RUNNING_DIR which is not refreshed when we are in shell mode
 	_file="$(__rel_to_abs_path "$_file" "$( cd "$( dirname "." )" && pwd )")"
@@ -1318,16 +1332,18 @@ __get_install_name_darwin() {
 __check_install_name_darwin() {
 	local _path=$1
 	local OPT="$2"
-	local t
 	local _result=0
-	local f=
 
+	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return $_result
+
+	local f=
 	if [ -d "$_path" ]; then
 		for f in  "$_path"/*; do
 			__check_install_name_darwin "$f" "$OPT" || _result=1
 		done
 	fi
 
+	local t
 	local _opt_rpath=OFF
 	local _opt_path=OFF
 	for o in $OPT; do
@@ -1335,7 +1351,7 @@ __check_install_name_darwin() {
 		[ "$o" = "PATH" ] && _opt_rpath=OFF && _opt_path=ON
 	done
 
-	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return $_result
+
 
 	if __is_shareable_bin "$_path"; then
 		if __is_macho "$_path" || __is_macho_universal "$_path"; then
@@ -1394,9 +1410,8 @@ __check_install_name_darwin() {
 __tweak_install_name_darwin() {
 	local _path=$1
 	local OPT="$2"
-	local _new_install_name
-	local _original_install_name
-
+	
+	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return
 
 	local f=
 	if [ -d "$_path" ]; then
@@ -1412,7 +1427,9 @@ __tweak_install_name_darwin() {
 		[ "$o" = "PATH" ] && _opt_rpath=OFF && _opt_path=ON
 	done
 
-	[ -z "$(__filter_list "$_path" "INCLUDE_TAG INCLUDE_FILTER EXCLUDE_TAG EXCLUDE_FILTER $OPT")" ] && return
+	local _new_install_name
+	local _original_install_name
+
 
 	if __is_shareable_bin "$_path"; then
 		if __is_macho "$_path" || __is_macho_universal "$_path"; then

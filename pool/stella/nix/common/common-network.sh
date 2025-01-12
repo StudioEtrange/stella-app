@@ -190,8 +190,10 @@ __proxy_override() {
 	}
 
 	function curl() {
-		[ ! "$STELLA_PROXY_USER" = "" ] && echo $(command curl --noproxy $STELLA_NO_PROXY --proxy "$STELLA_PROXY_HOST:$STELLA_PROXY_PORT" --proxy-user "$STELLA_PROXY_USER:$STELLA_PROXY_PASS" "$@")
-		[ "$STELLA_PROXY_USER" = "" ] && echo $(command curl --noproxy $STELLA_NO_PROXY --proxy "$STELLA_PROXY_HOST:$STELLA_PROXY_PORT" "$@")
+		local __port
+		[ ! "${STELLA_PROXY_PORT}" = "" ] && __port=":${STELLA_PROXY_PORT}"
+		[ ! "$STELLA_PROXY_USER" = "" ] && echo $(command curl --noproxy "${STELLA_NO_PROXY}" --proxy "${STELLA_PROXY_HOST}${__port}" --proxy-user "${STELLA_PROXY_USER}:${STELLA_PROXY_PASS}" "$@")
+		[ "$STELLA_PROXY_USER" = "" ] && echo $(command curl --noproxy "${STELLA_NO_PROXY}" --proxy "${STELLA_PROXY_HOST}${__port}" "$@")
 	}
 
 
@@ -200,7 +202,9 @@ __proxy_override() {
 	}
 
 	function hg() {
-		echo $(command hg --config http_proxy.host="$STELLA_PROXY_HOST":"$STELLA_PROXY_PORT" --config http_proxy.user="$STELLA_PROXY_USER" --config http_proxy.passwd="$STELLA_PROXY_PASS" "$@")
+		local __port
+		[ ! "${STELLA_PROXY_PORT}" = "" ] && __port=":${STELLA_PROXY_PORT}"
+		echo $(command hg --config http_proxy.host="${STELLA_PROXY_HOST}${__port}" --config http_proxy.user="${STELLA_PROXY_USER}" --config http_proxy.passwd="${STELLA_PROXY_PASS}" "$@")
 	}
 
 	function mvn() {
@@ -743,11 +747,17 @@ __register_no_proxy() {
 # only temporary no proxy
 # will be reseted each time proxy values are read from env file
 __no_proxy_for() {
-	local _uri=$1
+	local _uri="$1"
 
+	if [ "$_uri" == "" ]; then
+		return
+	fi
 	__uri_parse "$_uri"
 	local _host="$__stella_uri_host"
 
+	if [ "$_host" == "" ]; then
+		return
+	fi
 
 	local _exist=
 	local _tmp_no_proxy="${STELLA_NO_PROXY//,/ }"
