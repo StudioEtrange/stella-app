@@ -393,7 +393,7 @@ __sudo_begin_session() {
     trap '__sudo_end_session; exit' SIGABRT SIGHUP SIGINT SIGQUIT SIGTERM ERR EXIT
 }
 __sudo_end_session() {
-		echo "** Ending sudo session $STELLA_SUDO_PID"
+	__log "INFO" "Ending sudo session $STELLA_SUDO_PID"
     kill -0 "$STELLA_SUDO_PID"
     trap - SIGABRT SIGHUP SIGINT SIGQUIT SIGTERM ERR EXIT
     sudo -k
@@ -961,17 +961,43 @@ __sort_version() {
 }
 
 
-
-
-
-
+# other method https://gist.github.com/cdown/1163649
+# other method http://unix.stackexchange.com/a/60698
 __url_encode() {
-	#if [ "$(which xxd 2>/dev/null)" = "" ]; then
-	if ! type -P xxd &>/dev/null; then
-		__url_encode_1 "$@"
-	else
-		__url_encode_with_xxd "$@"
-	fi
+	__url_encode_with_awk  "$@"
+}
+
+# https://unix.stackexchange.com/a/678894
+__url_encode_with_awk() {
+  LC_ALL=C awk -- '
+    BEGIN {
+      for (i = 1; i <= 255; i++) hex[sprintf("%c", i)] = sprintf("%%%02X", i)
+    }
+    function urlencode(s,  c,i,r,l) {
+      l = length(s)
+      for (i = 1; i <= l; i++) {
+        c = substr(s, i, 1)
+        r = r "" (c ~ /^[-._~0-9a-zA-Z]$/ ? c : hex[c])
+      }
+      return r
+    }
+    BEGIN {
+      for (i = 1; i < ARGC; i++)
+        print urlencode(ARGV[i])
+    }' "$@"
+}
+
+# https://gist.github.com/cdown/1163649
+# xxd is used to support wide characters
+__url_encode_with_xxd() {
+  local length="${#1}"
+  for (( i = 0; i < length; i++ )); do
+    local c="${1:i:1}"
+    case $c in
+	      [a-zA-Z0-9.~_-]) printf "$c" ;;
+	    *) printf "$c" | xxd -p -c1 | while read x;do printf "%%%s" "$x";done
+	  esac
+	done
 }
 
 # https://gist.github.com/cdown/1163649
@@ -991,21 +1017,10 @@ __url_encode_1() {
     LC_COLLATE=$old_lc_collate
 }
 
-# https://gist.github.com/cdown/1163649
-# xxd is used to suppoert wide characters
-__url_encode_with_xxd() {
-  local length="${#1}"
-  for (( i = 0; i < length; i++ )); do
-    local c="${1:i:1}"
-    case $c in
-	      [a-zA-Z0-9.~_-]) printf "$c" ;;
-	    *) printf "$c" | xxd -p -c1 | while read x;do printf "%%%s" "$x";done
-	  esac
-	done
-}
+
+
 
 # Faster solution than __url_encode_1 ? (without xxd)
-# http://unix.stackexchange.com/a/60698
 __url_encode_2() {
 	string=$1; format=; set --
   while
@@ -1028,6 +1043,10 @@ __url_encode_2() {
   done
   printf "$format\\n" "$@"
 }
+
+
+
+
 
 # https://gist.github.com/cdown/1163649
 __url_decode() {
@@ -1486,7 +1505,7 @@ __transfer_stella() {
 		[ "$o" = "FOLDER_CONTENT" ] && _opt_folder_content="FOLDER_CONTENT"
 		[ "$o" = "DELETE_EXCLUDED" ] && _opt_delete_excluded="DELETE_EXCLUDED"
 	done
-	__log "DEBUG" "** ${_opt_sudo} Transfer stella to $_uri"
+	__log "DEBUG" "${_opt_sudo} Transfer stella to $_uri"
 	__transfer_folder_rsync "$STELLA_ROOT" "$_uri" "$_opt_delete_excluded $_opt_ex_win $_opt_ex_app $_opt_ex_cache $_opt_ex_workspace $_opt_ex_env $_opt_ex_git $_opt_sudo $_opt_folder_content"
 }
 
@@ -1534,7 +1553,7 @@ __transfer_file_rsync() {
 	local _uri="$2"
 	local _opt="$3"
 
-	__log "DEBUG" "** Transfer file $_file to $_uri"
+	__log "DEBUG" "Transfer file $_file to $_uri"
 	__transfer_rsync "FILE" "$_file" "$_uri" "$_opt"
 }
 
@@ -1693,7 +1712,7 @@ __transfer_rsync() {
 			;;
 		local )
 			if [ "$_source" = "$_target" ]; then
-				__log "INFO" " ** source $_source and target $_target are equivalent, so no transfer"
+				__log "INFO" "source $_source and target $_target are equivalent, so no transfer"
 			else
 				# '--rsync-path' option seems to not work when we are on the same host (local)
 				if [ "$_opt_sudo" = "ON" ]; then
@@ -1707,7 +1726,7 @@ __transfer_rsync() {
 			fi
 			;;
 		*)
-			echo "** ERROR protocol unknown"
+			__log "ERROR" "protocol $__stella_uri_schema unknown"
 			;;
 	esac
 }
@@ -2314,7 +2333,7 @@ __count_folder_item() {
 }
 
 __del_folder() {
-	__log "DEBUG" "** Deleting $1 folder"
+	__log "DEBUG" "Deleting $1 folder"
 	[ -d $1 ] && rm -Rf $1
 }
 
@@ -2415,11 +2434,11 @@ __resource() {
 		fi
 	done
 
-	[ "$_opt_revert" = "ON" ] && __log "INFO" " ** Reverting resource :"
-	[ "$_opt_update" = "ON" ] && __log "INFO" " ** Updating resource :"
-	[ "$_opt_delete" = "ON" ] && __log "INFO" " ** Deleting resource :"
-	[ "$_opt_get" = "ON" ] && __log "INFO" " ** Getting resource :"
-	[ ! "$FINAL_DESTINATION" = "" ] && __log "INFO" " $NAME in $FINAL_DESTINATION" || __log "INFO" " $NAME"
+	[ "$_opt_revert" = "ON" ] && __log "INFO" "Reverting resource :"
+	[ "$_opt_update" = "ON" ] && __log "INFO" "Updating resource :"
+	[ "$_opt_delete" = "ON" ] && __log "INFO" "Deleting resource :"
+	[ "$_opt_get" = "ON" ] && __log "INFO" "Getting resource :"
+	[ ! "$FINAL_DESTINATION" = "" ] && __log "INFO" "$NAME in $FINAL_DESTINATION" || __log "INFO" "$NAME"
 
 	#[ "$FORCE" ] && rm -Rf $FINAL_DESTINATION
 	if [ "$_opt_get" = "ON" ]; then
@@ -2455,13 +2474,13 @@ __resource() {
 					if [ "$_opt_get" = "ON" ]; then
 						if [ "$_opt_merge" = "ON" ]; then
 							if [ -f "$FINAL_DESTINATION/._MERGED_$NAME" ]; then
-								__log "INFO" " ** Ressource already merged"
+								__log "INFO" "Ressource already merged"
 								_FLAG=0
 							fi
 						fi
 						if [ "$_opt_strip" = "ON" ]; then
-							#__log " ** Ressource already stripped"
-							__log "INFO" " ** Destination folder exist"
+							#__log "Ressource already stripped"
+							__log "INFO" "Destination folder exist"
 							#_FLAG=0
 						fi
 					fi
@@ -2476,7 +2495,7 @@ __resource() {
 					if [ "$_opt_get" = "ON" ]; then
 						if [ "$_opt_merge" = "ON" ]; then
 							if [ -f "$FINAL_DESTINATION/._MERGED_$NAME" ]; then
-								__log "INFO" " ** Ressource already merged"
+								__log "INFO" "Ressource already merged"
 								_FLAG=0
 							fi
 						fi
@@ -2488,12 +2507,12 @@ __resource() {
 				[ "$_opt_merge" = "ON" ] && __log "INFO" "MERGE option not supported with this protocol"
 				if [ -d "$FINAL_DESTINATION" ]; then
 					if [ "$_opt_get" = "ON" ]; then
-						__log "INFO" " ** Ressource already exist"
+						__log "INFO" "Ressource already exist"
 						_FLAG=0
 					fi
 				else
-					[ "$_opt_revert" = "ON" ] && __log "INFO" " ** Ressource does not exist" && _FLAG=0
-					[ "$_opt_update" = "ON" ] && __log "INFO" " ** Ressource does not exist" && _FLAG=0
+					[ "$_opt_revert" = "ON" ] && __log "INFO" "Ressource does not exist" && _FLAG=0
+					[ "$_opt_update" = "ON" ] && __log "INFO" "Ressource does not exist" && _FLAG=0
 				fi
 				;;
 		esac
@@ -2535,7 +2554,7 @@ __resource() {
 				if [ "$_opt_merge" = "ON" ]; then echo 1 > "$FINAL_DESTINATION/._MERGED_$NAME"; fi
 				;;
 			* )
-				__log "INFO" " ** ERROR Unknow protocol"
+				__log "ERROR" "Unknow protocol"
 				;;
 		esac
 	fi
@@ -2559,7 +2578,7 @@ __download_uncompress() {
 	if [ "${FILE_NAME}" = "_AUTO_" ]; then
 		#_AFTER_SLASH=${URL##*/}
 		FILE_NAME=$(__get_filename_from_url "$URL")
-		__log "INFO" "** Guessed file name is $FILE_NAME"
+		__log "INFO" "Guessed file name is $FILE_NAME"
 	fi
 
 	__download "$URL" "$FILE_NAME"
@@ -2609,7 +2628,7 @@ __compress() {
 			fi
 			;;
 		ZIP)
-			__log "DEBUG" "TODO: *********** ZIP NOT IMPLEMENTED"
+			__log "ERROR" "TODO: *********** ZIP NOT IMPLEMENTED"
 			;;
 		TAR*)
 				[ -d "$_target" ] && tar -c -v $_tar_flag -f "$_output_archive" -C "$_target/.." "$(basename "${_target}")"
@@ -2642,35 +2661,39 @@ __uncompress() {
 
 	mkdir -p "$UNZIP_DIR"
 
-	__log "INFO" " ** Uncompress $FILE_PATH in $UNZIP_DIR"
+	__log "INFO" "Uncompress $FILE_PATH in $UNZIP_DIR"
 
 	cd "$UNZIP_DIR"
 
 	case "$FILE_PATH" in
 		*.zip)
 			__require "unzip" "unzip" "SYSTEM"
-			[ "$_opt_strip" = "OFF" ] && unzip -a -o "$FILE_PATH"
-			[ "$_opt_strip" = "ON" ] && __unzip-strip "$FILE_PATH" "$UNZIP_DIR"
+			if [ "$_opt_strip" = "ON" ]; then
+				__unzip-strip "$FILE_PATH" "$UNZIP_DIR"
+			else
+				unzip -a -o "$FILE_PATH"
+			fi
 			;;
 		*.tar )
-			if [ "$_opt_strip" = "OFF" ]; then
-				tar xf "$FILE_PATH"
-			else
+			if [ "$_opt_strip" = "ON" ]; then
 				tar xf "$FILE_PATH" --strip-components=1 2>/dev/null || __untar-strip "$FILE_PATH" "$UNZIP_DIR"
+			else
+				tar xf "$FILE_PATH"
 			fi
 			;;
 		*.gz | *.tgz)
-			if [ "$_opt_strip" = "OFF" ]; then
-				tar xzf "$FILE_PATH"
-			else
+			__log "DEBUG" "GZ file detected - option strip is $_opt_strip"	
+			if [ "$_opt_strip" = "ON" ]; then
 				tar xzf "$FILE_PATH" --strip-components=1 2>/dev/null || __untar-strip "$FILE_PATH" "$UNZIP_DIR"
+			else
+				tar xzf "$FILE_PATH"
 			fi
 			;;
 		*.xz | *.tar.bz2 | *.tbz2 | *.tbz)
-			if [ "$_opt_strip" = "OFF" ]; then
-				tar xf "$FILE_PATH"
-			else
+			if [ "$_opt_strip" = "ON" ]; then
 				tar xf "$FILE_PATH" --strip-components=1 2>/dev/null || __untar-strip "$FILE_PATH" "$UNZIP_DIR"
+			else
+				tar xf "$FILE_PATH"
 			fi
 			;;
 		*.bz2|*.bz)
@@ -2694,7 +2717,7 @@ __uncompress() {
 				ar p "$FILE_PATH" data.tar.gz | tar xz
 			;;
 		*)
-			__log "INFO" " ** ERROR : Unknown archive format"
+			__log "ERROR" "Unknown archive format"
 			;;
 	esac
 }
@@ -2715,30 +2738,28 @@ __download() {
 	if [ "$FILE_NAME" = "_AUTO_" ]; then
 		#_AFTER_SLASH=${URL##*/}
 		FILE_NAME=$(__get_filename_from_url "$URL")
-		__log "INFO" "** Guessed file name is $FILE_NAME"
+		__log "INFO" "Guessed file name is $FILE_NAME"
 	fi
 
 	mkdir -p "$STELLA_APP_CACHE_DIR"
 
-	__log "INFO" " ** Download $FILE_NAME from $URL into cache"
 
-	#if [ "$FORCE" = "1" ]; then
-	#	rm -Rf "$STELLA_APP_CACHE_DIR/$FILE_NAME"
-	#fi
+	if [ "$FORCE" = "1" ]; then
+		__log "INFO" "Empty $FILE_NAME from cache if any"
+		rm -Rf "$STELLA_APP_CACHE_DIR/$FILE_NAME"
+	fi
+
+	__log "INFO" "Download $FILE_NAME from $URL into cache"
 
 
 	if [ ! -f "$STELLA_APP_CACHE_DIR/$FILE_NAME" ]; then
 		if [ ! -f "$STELLA_INTERNAL_CACHE_DIR/$FILE_NAME" ]; then
 			# NOTE : curl seems to be more compatible
-			#if [[ -n `which curl 2> /dev/null` ]]; then
-			if type -P curl &>/dev/null; then
-				# TODO : why two curl call ?
-				curl -fkSL -o "$STELLA_APP_CACHE_DIR/$FILE_NAME" "$URL" || \
+			if type curl &>/dev/null; then
 				curl -fkSL -o "$STELLA_APP_CACHE_DIR/$FILE_NAME" "$URL" || \
 				rm -f "$STELLA_APP_CACHE_DIR/$FILE_NAME"
 			else
-				#if [[ -n `which wget 2> /dev/null` ]]; then
-				if type -P wget &>/dev/null; then
+				if type wget &>/dev/null; then
 					wget "$URL" -O "$STELLA_APP_CACHE_DIR/$FILE_NAME" --no-check-certificate || \
 					wget "$URL" -O "$STELLA_APP_CACHE_DIR/$FILE_NAME" || \
 					rm -f "$STELLA_APP_CACHE_DIR/$FILE_NAME"
@@ -2747,10 +2768,10 @@ __download() {
 				fi
 			fi
 		else
-			__log "INFO" " ** Already downloaded"
+			__log "INFO" "File already into cache"
 		fi
 	else
-		__log "INFO" " ** Already downloaded"
+		__log "INFO" "File already into cache"
 	fi
 
 	local _tmp_dir
@@ -2769,11 +2790,11 @@ __download() {
 					mkdir -p "$DEST_DIR"
 				fi
 				cp "$_tmp_dir/$FILE_NAME" "$DEST_DIR/"
-				__log "INFO" "** Downloaded $FILE_NAME is in $DEST_DIR"
+				__log "INFO" "Downloaded $FILE_NAME is in $DEST_DIR"
 			fi
 		fi
 	else
-		__log "INFO" "** ERROR downloading $URL"
+		__log "ERROR" "ERROR downloading $URL"
 	fi
 }
 
@@ -2866,8 +2887,7 @@ __mercurial_project_version() {
 		[ "$o" = "LONG" ] && _opt_version_long=ON
 	done
 
-	#if [[ -n `which hg 2> /dev/null` ]]; then
-	if type -P hg &>/dev/null; then
+	if type hg &>/dev/null; then
 		if [ "$_opt_version_long" = "ON" ]; then
 			echo "$(hg log -R "$_PATH" -r . --template "{latesttag}-{latesttagdistance}-{node|short}")"
 		fi
@@ -2896,7 +2916,7 @@ __git_project_version() {
 	fi
 
 	if [ -d "${_path}/.git" ]; then
-		if type -P git &>/dev/null; then
+		if type git &>/dev/null; then
 			# TODO NOTE : --first-parent option needs git version >= 1.8.4 but for fast execution purpose we test only >2
 			if [ "$(git --version | awk '{print $3}' | cut -d. -f1)" -ge 2 ]; then			
 				echo "$(git --git-dir "${_path}/.git" describe --tags ${_git_options} --always --first-parent)"
