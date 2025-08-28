@@ -52,7 +52,7 @@ __transfer_app(){
 
 	__standard_include="INCLUDE /.stella-id"
 
-	__log "DEBUG" "** ${_opt_sudo} Transfer app $STELLA_APP_NAME to $_uri"
+	__log "DEBUG" "** ${_opt_sudo} Transfer app $STELLA_APP_NAME from $STELLA_APP_ROOT to $_uri"
 
 	__transfer_folder_rsync "$STELLA_APP_ROOT" "$_uri" "$__standard_include $_opt_delete_excluded $_opt_ex_cache $_opt_ex_workspace $_opt_ex_hidden $_opt_exclude $_opt_ex_git $_opt_sudo $_opt_folder_content $_opt_copy_links"
 
@@ -220,7 +220,7 @@ __init_app() {
 		mkdir -p "$_approot"
 	fi
 
-  [ "$_workroot" = "" ] && _workroot="$_approot/workspace"
+  	[ "$_workroot" = "" ] && _workroot="$_approot/workspace"
 	[ "$_cachedir" = "" ] && _cachedir="$_approot/cache"
 
 	[ "$(__is_abs "$_workroot")" = "FALSE" ] && _workroot=$(__rel_to_abs_path "$_workroot" "$_approot")
@@ -233,7 +233,7 @@ __init_app() {
 
 	_STELLA_APP_PROPERTIES_FILE="$_approot/$STELLA_APP_PROPERTIES_FILENAME"
 	if [ -f "$_STELLA_APP_PROPERTIES_FILE" ]; then
-		echo " ** Properties file already exist"
+		__log_stella "WARN" "Properties file $_STELLA_APP_PROPERTIES_FILE already exists"
 	else
 		__add_key "$_STELLA_APP_PROPERTIES_FILE" "STELLA" "APP_NAME" "$_app_name"
 		__add_key "$_STELLA_APP_PROPERTIES_FILE" "STELLA" "APP_WORK_ROOT" "$_workroot"

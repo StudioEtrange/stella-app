@@ -143,7 +143,7 @@ if [ "$ACTION" = "members" ]; then
   fi
   # convert hostname to IP
   if [ ! "$IP" = "" ] ; then
-    IP="$($STELLA_API get_ip_from_hostname $IP)"
+    IP="$($STELLA_API get_ip_from_host $IP)"
   else
     if [ ! "$IF" = "" ]; then
       IP="$($STELLA_API get_ip_from_interface $IF)"
@@ -198,7 +198,7 @@ if [ "$ACTION" = "create" ]; then
           
           if [ ! "$IP" = "" ]; then
 
-            CONSUL_AGENT_BIND_IP="$($STELLA_API get_ip_from_hostname $IP)"
+            CONSUL_AGENT_BIND_IP="$($STELLA_API get_ip_from_host $IP)"
 
             __log_run docker run -d \
                 --name $SERVICE_NAME \
@@ -250,7 +250,7 @@ if [ "$ACTION" = "create" ]; then
           JOINIP="$(docker inspect -f '{{.Config.Hostname}}' ${DEFAULT_SERVICE_NAME}-${JOINID})"
         fi
         # convert hostname to IP
-        [ ! "$JOINIP" = "" ] && JOINIP="$($STELLA_API get_ip_from_hostname $JOINIP)"
+        [ ! "$JOINIP" = "" ] && JOINIP="$($STELLA_API get_ip_from_host $JOINIP)"
 
         if [ "$JOINIP" = "" ]; then
           echo "** ERROR : precise a consul IP to join with --joinip or an instance id with --joinid"
@@ -281,7 +281,7 @@ if [ "$ACTION" = "create" ]; then
         
 
           if [ ! "$IP" = "" ]; then
-            CONSUL_AGENT_BIND_IP="$($STELLA_API get_ip_from_hostname $IP)"
+            CONSUL_AGENT_BIND_IP="$($STELLA_API get_ip_from_host $IP)"
 
             __log_run docker run -d \
               --name $SERVICE_NAME \

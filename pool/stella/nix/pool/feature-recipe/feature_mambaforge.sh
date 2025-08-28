@@ -2,8 +2,8 @@ if [ ! "$_mambaforge_INCLUDED_" = "1" ]; then
 _mambaforge_INCLUDED_=1
 
 # mambaforge releases are into https://github.com/conda-forge/miniforge can install different python env management tools
-#		Miniforge3 and Mambaforge are identical "That said, if you had to start using one today, we recommend to stick to Miniforge."
-# all connected to conda-forge package repository
+# Miniforge and Mambaforge are identical "That said, if you had to start using one today, we recommend to stick to Miniforge."
+# both connected to conda-forge package repository
 
 
 # list of versions : https://github.com/conda-forge/miniforge/releases
@@ -12,7 +12,7 @@ _mambaforge_INCLUDED_=1
 feature_mambaforge() {
 	FEAT_NAME="mambaforge"
 	FEAT_LIST_SCHEMA="22_11_1_4@x64:binary 4_11_0_0@x64:binary"
-	FEAT_DEFAULT_ARCH="x64"
+	
 	FEAT_DEFAULT_FLAVOUR="binary"
 
 
